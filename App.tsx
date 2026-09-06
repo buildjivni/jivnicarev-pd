@@ -2,7 +2,7 @@ import React from "react";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PatientHomeScreen } from "./src/screens/home/PatientHomeScreen";
+import { RootNavigator } from "./src/navigation/RootNavigator";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,9 +20,8 @@ export default function App() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="dark" backgroundColor="#FFFFFF" />
-        <PatientHomeScreen />
+        <RootNavigator />
       </QueryClientProvider>
     </SafeAreaProvider>
   );
 }
-
