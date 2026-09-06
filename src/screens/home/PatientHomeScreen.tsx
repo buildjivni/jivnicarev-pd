@@ -16,9 +16,13 @@ import {
   PatientSpecialtiesRail,
   SpecialtyItem,
 } from "./components/PatientSpecialtiesRail";
+import { RecommendedDoctorsSection } from "./components/RecommendedDoctorsSection";
+import { Doctor } from "../../types/doctor";
 
 export interface PatientHomeScreenProps {
   onNavigateDoctors?: (filter?: { specialty?: string; isEmergency?: boolean }) => void;
+  onNavigateDoctorDetail?: (doctor: Doctor) => void;
+  onNavigateBooking?: (doctor: Doctor) => void;
   onNavigateSaved?: () => void;
   onNavigateProfile?: () => void;
   onNavigateNotifications?: () => void;
@@ -26,6 +30,8 @@ export interface PatientHomeScreenProps {
 
 export const PatientHomeScreen: React.FC<PatientHomeScreenProps> = ({
   onNavigateDoctors,
+  onNavigateDoctorDetail,
+  onNavigateBooking,
   onNavigateSaved,
   onNavigateProfile,
   onNavigateNotifications,
@@ -47,6 +53,28 @@ export const PatientHomeScreen: React.FC<PatientHomeScreenProps> = ({
       Alert.alert(
         "Specialty Selected",
         `Selected: ${specialty.name}\n(Will navigate to doctor directory pre-filtered for ${specialty.shortName})`
+      );
+    }
+  };
+
+  const handleDoctorPress = (doctor: Doctor) => {
+    if (onNavigateDoctorDetail) {
+      onNavigateDoctorDetail(doctor);
+    } else {
+      Alert.alert(
+        doctor.name,
+        `Clinic: ${doctor.clinic}\nSpecialty: ${doctor.specialty}\nFee: ${doctor.fee}`
+      );
+    }
+  };
+
+  const handleBookDoctor = (doctor: Doctor) => {
+    if (onNavigateBooking) {
+      onNavigateBooking(doctor);
+    } else {
+      Alert.alert(
+        "Booking OPD Token",
+        `Starting token booking for ${doctor.name} at ${doctor.clinic}.`
       );
     }
   };
@@ -85,16 +113,12 @@ export const PatientHomeScreen: React.FC<PatientHomeScreenProps> = ({
           onPressSeeAll={() => onNavigateDoctors?.()}
         />
 
-        {/* Placeholder section indicator for next incremental steps */}
-        <View style={styles.placeholderCard}>
-          <Text style={styles.placeholderTag}>NEXT INCREMENTAL PHASES</Text>
-          <Text style={styles.placeholderTitle}>
-            Awareness Carousel & Recommended Doctors
-          </Text>
-          <Text style={styles.placeholderSub}>
-            Doctor card visual layout awaiting reference image upload.
-          </Text>
-        </View>
+        {/* ── 4. RECOMMENDED DOCTORS SECTION ── */}
+        <RecommendedDoctorsSection
+          onSeeAll={() => onNavigateDoctors?.()}
+          onDoctorPress={handleDoctorPress}
+          onBookDoctor={handleBookDoctor}
+        />
       </ScrollView>
     </ScreenContainer>
   );
