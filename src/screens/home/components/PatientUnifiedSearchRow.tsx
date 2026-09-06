@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Animated,
 } from "react-native";
 import { Search, Heart, User, X } from "lucide-react-native";
-import { colors, typography, radius } from "../../../theme";
+import { colors, radius, shadows } from "../../../theme";
 import { usePatientLocationStore } from "../../../store/usePatientLocationStore";
 
 /**
@@ -23,13 +23,15 @@ const WEB_EXACT_PLACEHOLDERS = [
 
 export interface PatientUnifiedSearchRowProps {
   query?: string;
-  onQueryChange?: (text: string) => void;
+  onQueryChange?: (q: string) => void;
   onPressSearch?: () => void;
   onPressSaved?: () => void;
   onPressProfile?: () => void;
 }
 
-export const PatientUnifiedSearchRow: React.FC<PatientUnifiedSearchRowProps> = ({
+export const PatientUnifiedSearchRow: React.FC<
+  PatientUnifiedSearchRowProps
+> = ({
   query = "",
   onQueryChange,
   onPressSearch,
@@ -37,101 +39,111 @@ export const PatientUnifiedSearchRow: React.FC<PatientUnifiedSearchRowProps> = (
   onPressProfile,
 }) => {
   const { savedDoctorIds } = usePatientLocationStore();
+  const savedCount = savedDoctorIds.length;
+
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const fadeAnim = useState(new Animated.Value(1))[0];
 
   useEffect(() => {
+    if (query.length > 0) return;
+
     const interval = setInterval(() => {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }).start(() => {
-        setPlaceholderIndex((prev) => (prev + 1) % WEB_EXACT_PLACEHOLDERS.length);
+      Animated.sequence([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 250,
           useNativeDriver: true,
-        }).start();
-      });
-    }, 3000);
+        }),
+      ]).start();
+
+      setPlaceholderIndex(
+        (prev) => (prev + 1) % WEB_EXACT_PLACEHOLDERS.length
+      );
+    }, 3200);
 
     return () => clearInterval(interval);
-  }, [fadeAnim]);
-
-  const hasSavedItems = savedDoctorIds.length > 0;
+  }, [fadeAnim, query]);
 
   return (
     <View style={styles.container}>
-      {/* ── UNIFIED SEARCH INPUT BOX ── */}
+      {/* ── Search Input Field ── */}
       <TouchableOpacity
-        style={styles.searchBar}
-        activeOpacity={0.9}
+        activeOpacity={0.92}
         onPress={onPressSearch}
+        style={[styles.searchField, shadows.soft]}
       >
-        <Search size={17} color={colors.primary} strokeWidth={2.2} />
+        <Search
+          size={18}
+          color={colors.primary}
+          strokeWidth={2.4}
+          style={styles.searchIcon}
+        />
 
-        <View style={styles.inputContainer}>
-          {query.length === 0 ? (
-            <Animated.Text
-              style={[styles.animatedPlaceholder, { opacity: fadeAnim }]}
-              numberOfLines={1}
-            >
+        {query.length === 0 ? (
+          <Animated.View
+            style={[styles.placeholderContainer, { opacity: fadeAnim }]}
+            pointerEvents="none"
+          >
+            <Text style={styles.placeholderText} numberOfLines={1}>
               {WEB_EXACT_PLACEHOLDERS[placeholderIndex]}
-            </Animated.Text>
-          ) : null}
+            </Text>
+          </Animated.View>
+        ) : null}
 
-          <TextInput
-            style={styles.nativeInput}
-            value={query}
-            onChangeText={onQueryChange}
-            placeholder=""
-            placeholderTextColor="transparent"
-            returnKeyType="search"
-          />
-        </View>
+        <TextInput
+          value={query}
+          onChangeText={onQueryChange}
+          placeholder=""
+          style={styles.input}
+          returnKeyType="search"
+          onSubmitEditing={onPressSearch}
+        />
 
-        {query.length > 0 ? (
+        {query.length > 0 && (
           <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => onQueryChange && onQueryChange("")}
             style={styles.clearBtn}
-            onPress={() => onQueryChange?.("")}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <X size={14} color={colors.textMuted} />
+            <X size={15} color={colors.textMuted} strokeWidth={2.4} />
           </TouchableOpacity>
-        ) : null}
+        )}
       </TouchableOpacity>
 
-      {/* ── RIGHT ACTION 1: SAVED / WISHLIST HEART ── */}
+      {/* ── Saved Wishlist Action ── */}
       <TouchableOpacity
-        style={[styles.actionBtn, hasSavedItems && styles.savedActiveBtn]}
+        activeOpacity={0.8}
         onPress={onPressSaved}
-        activeOpacity={0.75}
-        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        style={[styles.actionButton, shadows.soft]}
+        accessibilityLabel="Saved Doctors"
       >
         <Heart
-          size={18}
-          color={hasSavedItems ? colors.destructive : colors.navy}
-          fill={hasSavedItems ? colors.destructive : "none"}
-          strokeWidth={2}
+          size={19}
+          color={savedCount > 0 ? colors.destructive : colors.textSecondary}
+          fill={savedCount > 0 ? colors.destructive : "transparent"}
+          strokeWidth={2.2}
         />
-        {hasSavedItems && (
-          <View style={styles.badgeCount}>
-            <Text style={styles.badgeText}>{savedDoctorIds.length}</Text>
+        {savedCount > 0 && (
+          <View style={styles.savedBadge}>
+            <Text style={styles.savedBadgeText}>{savedCount}</Text>
           </View>
         )}
       </TouchableOpacity>
 
-      {/* ── RIGHT ACTION 2: PROFILE ENTRY ICON ── */}
+      {/* ── Profile Entry Action ── */}
       <TouchableOpacity
-        style={styles.profileBtn}
+        activeOpacity={0.8}
         onPress={onPressProfile}
-        activeOpacity={0.75}
-        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        style={[styles.actionButton, shadows.soft]}
+        accessibilityLabel="Patient Profile"
       >
-        <View style={styles.avatarWrap}>
-          <User size={16} color={colors.primary} strokeWidth={2.2} />
-        </View>
+        <User size={19} color={colors.textSecondary} strokeWidth={2.2} />
       </TouchableOpacity>
     </View>
   );
@@ -141,73 +153,58 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
     paddingHorizontal: 16,
-    paddingVertical: 6,
-    backgroundColor: colors.surface,
+    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
+    gap: 10,
   },
-  searchBar: {
+  searchField: {
     flex: 1,
+    height: 48,
+    borderRadius: radius.full,
+    backgroundColor: colors.inputSurface,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    height: 46,
-    backgroundColor: colors.mutedBackground,
-    borderRadius: radius.xl,
     paddingHorizontal: 14,
-    borderWidth: 1.5,
-    borderColor: colors.cardBorder,
-  },
-  inputContainer: {
-    flex: 1,
-    height: "100%",
-    justifyContent: "center",
     position: "relative",
   },
-  animatedPlaceholder: {
-    ...typography.bodySmall,
-    fontSize: 12.5,
-    color: colors.textMuted,
-    fontWeight: "600",
-    position: "absolute",
-    left: 0,
-    right: 0,
+  searchIcon: {
+    marginRight: 8,
   },
-  nativeInput: {
-    flex: 1,
-    ...typography.bodySmall,
+  placeholderContainer: {
+    position: "absolute",
+    left: 40,
+    right: 36,
+  },
+  placeholderText: {
     fontSize: 13,
+    fontWeight: "500",
+    color: colors.textMuted,
+  },
+  input: {
+    flex: 1,
+    height: "100%",
+    fontSize: 13,
+    fontWeight: "600",
     color: colors.textPrimary,
-    fontWeight: "700",
     padding: 0,
   },
   clearBtn: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.cardBorder,
-    alignItems: "center",
-    justifyContent: "center",
+    padding: 4,
   },
-  actionBtn: {
+  actionButton: {
     width: 44,
     height: 44,
-    borderRadius: radius.xl,
-    backgroundColor: colors.mutedBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderRadius: 22,
+    backgroundColor: colors.inputSurface,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
   },
-  savedActiveBtn: {
-    backgroundColor: colors.destructiveBg,
-    borderColor: colors.destructiveBorder,
-  },
-  badgeCount: {
+  savedBadge: {
     position: "absolute",
-    top: -2,
-    right: -2,
+    top: 4,
+    right: 4,
     minWidth: 16,
     height: 16,
     borderRadius: 8,
@@ -216,29 +213,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 3,
   },
-  badgeText: {
-    ...typography.caption,
+  savedBadgeText: {
     fontSize: 9,
-    fontWeight: "900",
+    fontWeight: "800",
     color: "#FFFFFF",
-    lineHeight: 11,
-  },
-  profileBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.xl,
-    backgroundColor: colors.mutedBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.full,
-    backgroundColor: "rgba(86, 150, 199, 0.12)",
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

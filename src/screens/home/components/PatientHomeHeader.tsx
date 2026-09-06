@@ -1,7 +1,7 @@
-import React from "react";
+﻿import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { MapPin, ChevronDown, Bell, Globe } from "lucide-react-native";
-import { colors, typography, radius } from "../../../theme";
+import { colors, radius, shadows } from "../../../theme";
 import { usePatientLocationStore } from "../../../store/usePatientLocationStore";
 
 export interface PatientHomeHeaderProps {
@@ -23,49 +23,49 @@ export const PatientHomeHeader: React.FC<PatientHomeHeaderProps> = ({
   };
 
   return (
-    <View style={styles.headerContainer}>
-      {/* ── LEFT: Location Selector Pill (Matching web: "Location: [District]") ── */}
+    <View style={styles.container}>
+      {/* ── Left: Location Selector Chip ── */}
       <TouchableOpacity
-        style={styles.locationPill}
+        activeOpacity={0.8}
         onPress={() => setIsLocationSheetVisible(true)}
-        activeOpacity={0.75}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={[styles.locationChip, shadows.soft]}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
       >
-        <View style={styles.pinCircle}>
-          <MapPin size={14} color={colors.secondary} strokeWidth={2.5} />
-        </View>
-        <View style={styles.locationTextWrap}>
-          <Text style={styles.locationLabelText}>
-            {selectedDistrict ? `Location: ${selectedDistrict}` : "Select Location"}
-          </Text>
-        </View>
-        <ChevronDown size={14} color={colors.navy} strokeWidth={2.5} />
+        <MapPin
+          size={15}
+          color={colors.primary}
+          strokeWidth={2.4}
+          style={styles.pinIcon}
+        />
+        <Text style={styles.locationText} numberOfLines={1}>
+          Location: <Text style={styles.districtName}>{selectedDistrict}</Text>
+        </Text>
+        <ChevronDown size={14} color={colors.navy} strokeWidth={2.4} />
       </TouchableOpacity>
 
-      {/* ── RIGHT: Language Toggle + Notifications ── */}
+      {/* ── Right: Language & Notification Actions ── */}
       <View style={styles.rightActions}>
-        {/* Language Toggle Pill (English / Hinglish only as approved) */}
+        {/* Dual Language Switch */}
         <TouchableOpacity
-          style={styles.langPill}
+          activeOpacity={0.8}
           onPress={toggleLanguage}
-          activeOpacity={0.75}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          style={[styles.langChip, shadows.soft]}
         >
-          <Globe size={13} color={colors.primary} />
+          <Globe size={13} color={colors.primary} strokeWidth={2.2} />
           <Text style={styles.langText}>
-            {language === "en" ? "English" : "Hinglish"}
+            {language === "en" ? "ENGLISH" : "HINGLISH"}
           </Text>
         </TouchableOpacity>
 
-        {/* Notifications Bell */}
+        {/* Notification Bell */}
         <TouchableOpacity
-          style={styles.iconButton}
+          activeOpacity={0.8}
           onPress={onPressNotifications}
-          activeOpacity={0.75}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          style={[styles.bellButton, shadows.soft]}
+          accessibilityLabel="Notifications"
         >
-          <Bell size={18} color={colors.navy} strokeWidth={2} />
-          <View style={styles.unreadDot} />
+          <Bell size={18} color={colors.navy} strokeWidth={2.2} />
+          <View style={styles.notificationBadge} />
         </TouchableOpacity>
       </View>
     </View>
@@ -73,41 +73,34 @@ export const PatientHomeHeader: React.FC<PatientHomeHeaderProps> = ({
 };
 
 const styles = StyleSheet.create({
-  headerContainer: {
+  container: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
-    backgroundColor: colors.surface,
+    paddingTop: 8,
+    paddingBottom: 4,
+    backgroundColor: "#FFFFFF",
   },
-  locationPill: {
+  locationChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: radius.xl,
-    backgroundColor: colors.mutedBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    flexShrink: 1,
-  },
-  pinCircle: {
-    width: 24,
-    height: 24,
+    backgroundColor: colors.inputSurface,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: radius.full,
-    backgroundColor: colors.secondaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    gap: 5,
+    maxWidth: "58%",
   },
-  locationTextWrap: {
-    flexShrink: 1,
+  pinIcon: {
+    marginRight: 1,
   },
-  locationLabelText: {
-    ...typography.titleSmall,
-    fontSize: 13,
+  locationText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+  districtName: {
     fontWeight: "800",
     color: colors.navy,
   },
@@ -115,43 +108,42 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    flexShrink: 0,
   },
-  langPill: {
+  langChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: radius.full,
-    backgroundColor: "#F0F9FF",
+    gap: 4,
     borderWidth: 1,
-    borderColor: "#BAE6FD",
+    borderColor: "rgba(86, 150, 199, 0.20)",
   },
   langText: {
-    ...typography.caption,
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: "800",
     color: colors.navy,
+    letterSpacing: 0.3,
   },
-  iconButton: {
+  bellButton: {
     width: 36,
     height: 36,
-    borderRadius: radius.full,
-    backgroundColor: colors.mutedBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderRadius: 18,
+    backgroundColor: colors.inputSurface,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
   },
-  unreadDot: {
+  notificationBadge: {
     position: "absolute",
-    top: 7,
-    right: 8,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.destructive,
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
   },
 });

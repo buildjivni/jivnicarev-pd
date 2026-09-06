@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   View,
   Text,
@@ -17,12 +17,12 @@ import {
   CheckCircle2,
   Zap,
 } from "lucide-react-native";
-import { colors, typography, radius, shadows } from "../../theme";
+import { colors, radius, shadows } from "../../theme";
 import { Doctor } from "../../types/doctor";
 import { usePatientLocationStore } from "../../store/usePatientLocationStore";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-export const CARD_WIDTH = Math.min(SCREEN_WIDTH - 32, 330);
+export const CARD_WIDTH = Math.min(SCREEN_WIDTH - 36, 320);
 
 interface DoctorCardProps {
   doctor: Doctor;
@@ -109,11 +109,11 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => toggleSavedDoctor(doctor.id)}
-          style={styles.wishlistButton}
+          style={[styles.wishlistButton, shadows.soft]}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Heart
-            size={18}
+            size={17}
             color={isSaved ? colors.destructive : colors.textMuted}
             fill={isSaved ? colors.destructive : "transparent"}
             strokeWidth={2.2}
@@ -156,7 +156,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
         {/* Rating Pill */}
         {hasReviews ? (
           <View style={styles.ratingPill}>
-            <Star size={13} color="#D97706" fill="#FBBF24" />
+            <Star size={12} color="#D97706" fill="#FBBF24" />
             <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
             <Text style={styles.reviewCountText}>({reviewCount})</Text>
           </View>
@@ -194,7 +194,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
           </Text>
         </View>
 
-        {/* Clinic & Location Card */}
+        {/* Clinic & Location Box */}
         <View style={styles.clinicBox}>
           <MapPin
             size={14}
@@ -221,10 +221,10 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
                   styles.opdPulseDot,
                   {
                     backgroundColor: isAvailable
-                      ? colors.success
-                      : isOnBreak
-                      ? colors.warning
-                      : colors.offline,
+                  ? colors.success
+                  : isOnBreak
+                  ? colors.warning
+                  : colors.offline,
                   },
                 ]}
               />
@@ -264,9 +264,9 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
             <TouchableOpacity
               activeOpacity={0.88}
               onPress={onBook || onPress}
-              style={[styles.ctaButton, styles.ctaBookButton]}
+              style={[styles.ctaButton, styles.ctaBookButton, shadows.button]}
             >
-              <Calendar size={15} color="#FFFFFF" strokeWidth={2.4} />
+              <Calendar size={14} color="#FFFFFF" strokeWidth={2.4} />
               <Text style={styles.ctaButtonText}>Book OPD Token</Text>
             </TouchableOpacity>
           )}
@@ -312,15 +312,15 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: CARD_WIDTH,
-    backgroundColor: colors.surface,
-    borderRadius: radius["2xl"],
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: "rgba(15, 23, 42, 0.07)",
     overflow: "hidden",
-    marginRight: 16,
+    marginRight: 14,
   },
   coverWrapper: {
-    height: 125,
+    height: 115,
     width: "100%",
     backgroundColor: colors.accent,
     position: "relative",
@@ -346,15 +346,15 @@ const styles = StyleSheet.create({
   },
   emergencyBadge: {
     position: "absolute",
-    top: 10,
-    left: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    top: 9,
+    left: 9,
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3.5,
     borderRadius: radius.full,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 4,
     borderWidth: 1,
     borderColor: colors.destructiveBorder,
   },
@@ -365,27 +365,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.destructive,
   },
   emergencyText: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: "900",
     color: colors.destructive,
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   wishlistButton: {
     position: "absolute",
-    top: 10,
-    right: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    top: 9,
+    right: 9,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: "rgba(15, 23, 42, 0.08)",
   },
   avatarRow: {
-    paddingHorizontal: 16,
-    marginTop: -32,
+    paddingHorizontal: 14,
+    marginTop: -26,
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
@@ -395,35 +395,35 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   avatarImage: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    borderWidth: 3,
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    borderWidth: 2.5,
     borderColor: "#FFFFFF",
     backgroundColor: "#FFFFFF",
   },
   avatarFallback: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    borderWidth: 3,
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    borderWidth: 2.5,
     borderColor: "#FFFFFF",
     backgroundColor: colors.primaryLight,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarInitial: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "900",
     color: colors.primary,
   },
   statusDot: {
     position: "absolute",
-    bottom: -2,
-    right: -2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    bottom: -1,
+    right: -1,
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
@@ -433,52 +433,52 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFBEB",
     borderWidth: 1,
     borderColor: "#FDE68A",
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
     borderRadius: radius.full,
-    gap: 4,
+    gap: 3,
     marginBottom: 2,
   },
   ratingText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: "800",
     color: "#78350F",
   },
   reviewCountText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: "700",
     color: "#92400E",
   },
   verifiedClinicPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.mutedBackground,
+    backgroundColor: colors.inputSurface,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: "rgba(15, 23, 42, 0.08)",
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3.5,
     borderRadius: radius.full,
     gap: 4,
     marginBottom: 2,
   },
   verifiedClinicText: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: "700",
     color: colors.textSecondary,
   },
   contentBody: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 16,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 14,
   },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 4,
+    gap: 5,
+    marginBottom: 3,
   },
   doctorName: {
-    fontSize: 16,
+    fontSize: 15.5,
     fontWeight: "800",
     color: colors.textPrimary,
     flexShrink: 1,
@@ -486,50 +486,48 @@ const styles = StyleSheet.create({
   tagsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
+    gap: 6,
+    marginBottom: 9,
     flexWrap: "wrap",
   },
   specialtyTag: {
     backgroundColor: colors.primaryLight,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
   },
   specialtyTagText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: "700",
     color: colors.navy,
   },
   experienceText: {
-    fontSize: 11,
-    fontWeight: "700",
+    fontSize: 10.5,
+    fontWeight: "600",
     color: colors.textSecondary,
   },
   clinicBox: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: colors.mutedBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.xl,
-    padding: 9,
-    gap: 7,
-    marginBottom: 10,
+    backgroundColor: colors.inputSurface,
+    borderRadius: radius.md,
+    padding: 8,
+    gap: 6,
+    marginBottom: 9,
   },
   clinicPinIcon: {
-    marginTop: 2,
+    marginTop: 1,
   },
   clinicTextCol: {
     flex: 1,
   },
   clinicNameText: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: "700",
     color: colors.textPrimary,
   },
   clinicLocationText: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: "500",
     color: colors.textSecondary,
     marginTop: 1,
@@ -541,10 +539,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderWidth: 1,
     borderColor: "rgba(86, 150, 199, 0.15)",
-    borderRadius: radius.xl,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    marginBottom: 12,
+    borderRadius: radius.md,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginBottom: 10,
   },
   opdLeftCol: {
     flex: 1,
@@ -560,12 +558,12 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   opdTitleText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: "800",
     color: colors.navy,
   },
   opdSubtitleText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: "500",
     color: colors.textSecondary,
     marginTop: 1,
@@ -576,13 +574,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.destructiveBg,
     borderWidth: 1,
     borderColor: colors.destructiveBorder,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: radius.md,
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderRadius: radius.xs,
     gap: 3,
   },
   emergencyChipText: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: "800",
     color: colors.destructive,
   },
@@ -590,34 +588,34 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 10,
+    paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: colors.mutedBackground,
-    gap: 10,
+    borderTopColor: colors.inputSurface,
+    gap: 8,
   },
   feeCol: {
     justifyContent: "center",
   },
   feeLabel: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: "700",
     color: colors.textMuted,
     letterSpacing: 0.5,
   },
   feeAmount: {
-    fontSize: 16,
+    fontSize: 15.5,
     fontWeight: "800",
     color: colors.textPrimary,
   },
   ctaButton: {
     flex: 1,
-    minHeight: 40,
-    paddingHorizontal: 12,
-    borderRadius: radius.xl,
+    minHeight: 38,
+    paddingHorizontal: 10,
+    borderRadius: radius.md,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 5,
   },
   ctaBookButton: {
     backgroundColor: colors.primary,
@@ -629,23 +627,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success,
   },
   ctaClosedButton: {
-    backgroundColor: colors.mutedBackground,
+    backgroundColor: colors.inputSurface,
   },
   ctaButtonText: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: "700",
     color: "#FFFFFF",
   },
   ctaClosedText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: "700",
     color: colors.textMuted,
   },
   nextOpenSubtext: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: "700",
     color: colors.textMuted,
     textAlign: "right",
-    marginTop: 4,
+    marginTop: 3,
   },
 });

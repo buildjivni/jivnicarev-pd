@@ -1,4 +1,5 @@
 export const radius = {
+  xs: 4,      // Tiny pills, indicators
   sm: 8,      // Badges, micro tags
   md: 12,     // Buttons, text inputs
   lg: 16,     // Inner card blocks
