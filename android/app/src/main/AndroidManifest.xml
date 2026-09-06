@@ -27,8 +27,8 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="jivnicare-doctor"/>
-        <data android:scheme="com.jivnicare.partner"/>
+        <data android:scheme="jivnicare"/>
+        <data android:scheme="com.jivnicare.app"/>
       </intent-filter>
     </activity>
   </application>

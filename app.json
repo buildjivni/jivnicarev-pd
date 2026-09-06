@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "JivniCare Partner",
-    "slug": "jivnicare-partner",
-    "scheme": "jivnicare-doctor",
+    "name": "JivniCare",
+    "slug": "jivnicare",
+    "scheme": "jivnicare",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,9 +14,9 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jivnicare.partner",
+      "bundleIdentifier": "com.jivnicare.app",
       "infoPlist": {
-        "CFBundleDisplayName": "JivniCare Partner"
+        "CFBundleDisplayName": "JivniCare"
       }
     },
     "android": {
@@ -24,7 +24,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.jivnicare.partner"
+      "package": "com.jivnicare.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -1,4 +1,4 @@
-package com.jivnicare.partner
+package com.jivnicare.app
 
 import android.os.Build
 import android.os.Bundle
