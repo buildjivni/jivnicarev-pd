@@ -1,0 +1,41 @@
+pluginManagement {
+    def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+    def nodeCmd = isWindows ? ["cmd.exe", "/c", "node"] : ["node"]
+    def getPkgPath = { String expr ->
+        def cmd = []
+        cmd.addAll(nodeCmd)
+        cmd.addAll(["--print", expr])
+        return cmd.execute(null, rootDir).text.trim()
+    }
+    includeBuild(new File(getPkgPath("require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })")).getParentFile().toString())
+}
+plugins { id("com.facebook.react.settings") }
+
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+  ex.autolinkLibrariesFromCommand()
+}
+
+rootProject.name = 'JivniCare Partner'
+
+def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+def nodeCmd = isWindows ? ["cmd.exe", "/c", "node"] : ["node"]
+def resolveNode = { String expr ->
+    def cmd = []
+    cmd.addAll(nodeCmd)
+    cmd.addAll(["--print", expr])
+    return cmd.execute(null, rootDir).text.trim()
+}
+
+dependencyResolutionManagement {
+  versionCatalogs {
+    reactAndroidLibs {
+      from(files(new File(resolveNode("require.resolve('react-native/package.json')"), "../gradle/libs.versions.toml")))
+    }
+  }
+}
+
+apply from: new File(resolveNode("require.resolve('expo/package.json')"), "../scripts/autolinking.gradle");
+useExpoModules()
+
+include ':app'
+includeBuild(new File(resolveNode("require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })")).getParentFile())
