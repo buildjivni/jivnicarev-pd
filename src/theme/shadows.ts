@@ -43,6 +43,20 @@ export const shadows = {
     default: {},
   }) as ViewStyle,
 
+  // Elevated shadow alias
+  elevated: Platform.select({
+    ios: {
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.12,
+      shadowRadius: 16,
+    },
+    android: {
+      elevation: 5,
+    },
+    default: {},
+  }) as ViewStyle,
+
   // Soft subtle border/surface elevation
   soft: Platform.select({
     ios: {

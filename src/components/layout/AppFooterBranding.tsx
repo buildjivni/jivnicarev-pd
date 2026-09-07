@@ -1,7 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { colors } from "../../theme/colors";
-import { fontFamilies, typography } from "../../theme/typography";
 import { ShieldCheck } from "lucide-react-native";
 
 interface AppFooterBrandingProps {
@@ -16,7 +15,7 @@ export const AppFooterBranding: React.FC<AppFooterBrandingProps> = ({ style }) =
         <Text style={styles.brandText}>JIVNICARE HEALTHCARE NETWORK</Text>
       </View>
       <Text style={styles.subText}>
-        Doctor Workspace • v1.0.0 (Pilot) • NMC Registered Partner
+        Patient App • v1.0.0 (Beta) • NMC Registered Partner Clinics
       </Text>
     </View>
   );
@@ -35,7 +34,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   brandText: {
-    fontFamily: fontFamilies.heading,
     fontWeight: "800",
     fontSize: 10,
     letterSpacing: 1.2,
@@ -43,7 +41,6 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   subText: {
-    fontFamily: fontFamilies.body,
     fontSize: 10,
     color: colors.textMuted,
   },
