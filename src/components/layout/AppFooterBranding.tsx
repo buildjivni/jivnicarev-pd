@@ -15,7 +15,10 @@ export const AppFooterBranding: React.FC<AppFooterBrandingProps> = ({ style }) =
         <Text style={styles.brandText}>JIVNICARE HEALTHCARE NETWORK</Text>
       </View>
       <Text style={styles.subText}>
-        Patient App • v1.0.0 (Beta) • NMC Registered Partner Clinics
+        Patient Beta • v1.0.0 • Partner Clinics
+      </Text>
+      <Text style={styles.disclaimerText}>
+        Digital OPD queue assistant. Clinical care is provided by independent practitioners.
       </Text>
     </View>
   );
@@ -24,6 +27,7 @@ export const AppFooterBranding: React.FC<AppFooterBrandingProps> = ({ style }) =
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 24,
+    paddingHorizontal: 20,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -43,5 +47,14 @@ const styles = StyleSheet.create({
   subText: {
     fontSize: 10,
     color: colors.textMuted,
+    fontWeight: "600",
+  },
+  disclaimerText: {
+    fontSize: 9,
+    color: "#94A3B8",
+    textAlign: "center",
+    marginTop: 4,
+    lineHeight: 13,
   },
 });
+

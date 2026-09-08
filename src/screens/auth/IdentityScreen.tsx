@@ -9,76 +9,153 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Modal,
+  Dimensions,
+  Image,
+  StatusBar,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Path, Rect, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import {
   User,
-  MapPin,
-  Hash,
-  Mail,
   Calendar,
   ChevronDown,
-  ArrowRight,
-  ShieldCheck,
+  ArrowLeft,
+  Check,
+  BookUser,
+  MapPin,
 } from "lucide-react-native";
-import { colors, radius, shadows } from "../../theme";
+import { updateProfileApi } from "../../api/authApi";
+
+const { width } = Dimensions.get("window");
 
 interface IdentityScreenProps {
   phone: string;
+  initialName?: string;
+  token?: string;
   onSaveProfile: (profileData: {
     name: string;
-    location: string;
-    pincode?: string;
-    email?: string;
-    dob: string;
-    gender: string;
+    age: string;
+    gender: "Male" | "Female" | "Other";
     address: string;
-  }) => void;
-  onBack: () => void;
+    pincode: string;
+  }) => Promise<void> | void;
+  onSkip?: () => void;
+  onBack?: () => void;
 }
+
+// ── Custom Gender Icon matching Reference ──
+const GenderSymbolIcon = () => (
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Circle cx="12" cy="12" r="4.5" stroke="#64748B" strokeWidth={1.8} />
+    <Path d="M12 7.5V2.5M9.5 4.5h5" stroke="#64748B" strokeWidth={1.8} strokeLinecap="round" />
+    <Path d="M15.5 15.5l4 4M19.5 15.5v4h-4" stroke="#64748B" strokeWidth={1.8} strokeLinecap="round" />
+  </Svg>
+);
+
+// ── User Lock Icon ──
+const UserLockIcon = () => (
+  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+      stroke="#64748B"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Circle
+      cx="9"
+      cy="7"
+      r="4"
+      stroke="#64748B"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Rect
+      x="15"
+      y="11"
+      width="8"
+      height="6"
+      rx="1.2"
+      stroke="#64748B"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M17 11V9a2 2 0 0 1 4 0v2"
+      stroke="#64748B"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
 
 export const IdentityScreen: React.FC<IdentityScreenProps> = ({
   phone,
+  initialName = "",
+  token,
   onSaveProfile,
+  onSkip,
   onBack,
 }) => {
-  const [name, setName] = useState("");
-  const [location, setLocation] = useState("");
-  const [pincode, setPincode] = useState("");
-  const [email, setEmail] = useState("");
-  const [dob, setDob] = useState("1995-05-15");
-  const [gender, setGender] = useState("Male");
+  const insets = useSafeAreaInsets();
+  const [name, setName] = useState(initialName);
+  const [age, setAge] = useState("");
+  const [gender, setGender] = useState<"Male" | "Female" | "Other">("Male");
   const [address, setAddress] = useState("");
+  const [showGenderModal, setShowGenderModal] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSave = () => {
+  const handleContinue = async () => {
     if (!name.trim()) {
       setError("Please enter your full name");
       return;
     }
-    if (!location.trim()) {
-      setError("Please enter your city or village name");
+    const ageNum = parseInt(age, 10);
+    if (!age.trim() || isNaN(ageNum) || ageNum < 1 || ageNum > 120) {
+      setError("Please enter a valid age (1-120)");
       return;
     }
+
+    const safeAddress = address.trim() || "Jamui, Bihar";
     setError(null);
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      onSaveProfile({
-        name,
-        location,
-        pincode,
-        email,
-        dob,
+
+    const currentYear = new Date().getFullYear();
+    const birthYear = currentYear - ageNum;
+    const approximateDob = `${birthYear}-01-01`;
+
+    try {
+      await updateProfileApi({
+        name: name.trim(),
         gender,
-        address,
+        dateOfBirth: approximateDob,
+        address: safeAddress,
+        location: safeAddress,
+        pincode: "811307",
       });
-    }, 400);
+    } catch {
+      // Continue even if network error so patient isn't stuck
+    }
+
+    setLoading(false);
+    await onSaveProfile({
+      name: name.trim(),
+      age: age.trim(),
+      gender,
+      address: safeAddress,
+      pincode: "811307",
+    });
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.screenWrapper}>
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.container}
@@ -87,354 +164,495 @@ export const IdentityScreen: React.FC<IdentityScreenProps> = ({
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          bounces={false}
         >
-          <View style={styles.headlineBlock}>
-            <Text style={styles.headlineTitle}>Complete Your Profile</Text>
-            <Text style={styles.headlineSubtitle}>
-              Verified <Text style={styles.phoneHighlight}>+91 {phone}</Text> —
-              add your details
-            </Text>
+          {/* ── Top Hero: Realistic Patient Smartphone Banner ── */}
+          <View style={styles.heroContainer}>
+            <Image
+              source={require("../../../assets/images/patient_profile_real.jpg")}
+              style={styles.heroImage}
+              resizeMode="cover"
+            />
+
+            {/* Seamless Bottom Gradient Fade into Card */}
+            <View style={styles.gradientOverlay}>
+              <Svg width={width} height={90} viewBox="0 0 400 90" fill="none">
+                <Defs>
+                  <LinearGradient id="profileHeroFade" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <Stop offset="0%" stopColor="#F8FAFC" stopOpacity={0} />
+                    <Stop offset="70%" stopColor="#F1F5F9" stopOpacity={0.6} />
+                    <Stop offset="100%" stopColor="#F1F5F9" stopOpacity={1} />
+                  </LinearGradient>
+                </Defs>
+                <Rect width="400" height="90" fill="url(#profileHeroFade)" />
+              </Svg>
+            </View>
+
+            {/* Frosted Back Button Top-Left */}
+            <View style={[styles.topBarRow, { paddingTop: Math.max(insets.top + 6, 24) }]}>
+              {onBack ? (
+                <TouchableOpacity
+                  onPress={onBack}
+                  style={styles.frostedBackButton}
+                  activeOpacity={0.7}
+                >
+                  <ArrowLeft size={20} color="#0F172A" strokeWidth={2.5} />
+                </TouchableOpacity>
+              ) : (
+                <View style={{ width: 40 }} />
+              )}
+            </View>
           </View>
 
-          {error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-
-          <View style={styles.formContainer}>
-            {/* Full Name */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>FULL NAME</Text>
-              <View style={styles.inputBox}>
-                <User size={18} color={colors.textMuted} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Your Name"
-                  placeholderTextColor={colors.textMuted}
-                  value={name}
-                  onChangeText={(t) => {
-                    setName(t);
-                    if (error) setError(null);
-                  }}
-                />
-              </View>
-            </View>
-
-            {/* City / Village */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>CITY / VILLAGE NAME</Text>
-              <View style={styles.inputBox}>
-                <MapPin size={18} color={colors.textMuted} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your city or village"
-                  placeholderTextColor={colors.textMuted}
-                  value={location}
-                  onChangeText={(t) => {
-                    setLocation(t);
-                    if (error) setError(null);
-                  }}
-                />
-              </View>
-            </View>
-
-            {/* PIN Code */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>
-                PIN CODE{" "}
-                <Text style={styles.optionalText}>(optional)</Text>
+          {/* ── Floating Setup Profile Card (Natural Overlap) ── */}
+          <View style={styles.cardContainer}>
+            <View style={styles.profileCard}>
+              <Text style={styles.cardTitle}>Set up your profile</Text>
+              <Text style={styles.cardSubtitle}>
+                Add a few details to get started
               </Text>
-              <View style={styles.inputBox}>
-                <Hash size={18} color={colors.textMuted} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="e.g. 811307"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  value={pincode}
-                  onChangeText={setPincode}
-                />
-              </View>
-            </View>
 
-            {/* Email */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>
-                EMAIL{" "}
-                <Text style={styles.optionalText}>(optional)</Text>
-              </Text>
-              <View style={styles.inputBox}>
-                <Mail size={18} color={colors.textMuted} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="you@email.com"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="email-address"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-              </View>
-            </View>
-
-            {/* Date of Birth & Gender Row */}
-            <View style={styles.twoColRow}>
-              <View style={[styles.fieldGroup, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>DATE OF BIRTH</Text>
-                <View style={styles.inputBox}>
-                  <Calendar size={18} color={colors.textMuted} />
+              {/* Field 1: Full Name */}
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>Full Name</Text>
+                <View
+                  style={[
+                    styles.inputRow,
+                    focusedField === "name" && styles.inputRowFocused,
+                  ]}
+                >
+                  <User size={18} color="#64748B" />
                   <TextInput
                     style={styles.textInput}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={colors.textMuted}
-                    value={dob}
-                    onChangeText={setDob}
+                    placeholder="Enter your full name"
+                    placeholderTextColor="#94A3B8"
+                    value={name}
+                    onFocus={() => setFocusedField("name")}
+                    onBlur={() => setFocusedField(null)}
+                    onChangeText={(val) => {
+                      setName(val);
+                      if (error) setError(null);
+                    }}
                   />
                 </View>
               </View>
 
-              <View style={[styles.fieldGroup, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>GENDER</Text>
-                <View style={styles.genderOptions}>
-                  {["Male", "Female"].map((g) => (
-                    <TouchableOpacity
-                      key={g}
-                      style={[
-                        styles.genderChip,
-                        gender === g ? styles.genderChipActive : null,
-                      ]}
-                      onPress={() => setGender(g)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          styles.genderChipText,
-                          gender === g ? styles.genderChipTextActive : null,
-                        ]}
-                      >
-                        {g}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+              {/* Field 2: Age */}
+              <View style={styles.fieldBlock}>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <Text style={styles.fieldLabel}>Age</Text>
+                  <Text style={styles.fieldHelperLabel}>For doctor's prescription</Text>
+                </View>
+                <View
+                  style={[
+                    styles.inputRow,
+                    focusedField === "age" && styles.inputRowFocused,
+                  ]}
+                >
+                  <Calendar size={18} color="#64748B" />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Enter patient age (e.g. 28)"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="number-pad"
+                    maxLength={3}
+                    value={age}
+                    onFocus={() => setFocusedField("age")}
+                    onBlur={() => setFocusedField(null)}
+                    onChangeText={(val) => {
+                      setAge(val);
+                      if (error) setError(null);
+                    }}
+                  />
                 </View>
               </View>
-            </View>
 
-            {/* Address */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>FULL ADDRESS</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Street / Ward / Landmark"
-                  placeholderTextColor={colors.textMuted}
-                  value={address}
-                  onChangeText={setAddress}
-                />
+              {/* Field 3: Gender Dropdown */}
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>Gender</Text>
+                <TouchableOpacity
+                  style={styles.inputRow}
+                  onPress={() => setShowGenderModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <GenderSymbolIcon />
+                  <Text
+                    style={[
+                      styles.textInput,
+                      styles.pickerText,
+                      !gender && { color: "#94A3B8" },
+                    ]}
+                  >
+                    {gender || "Select gender"}
+                  </Text>
+                  <ChevronDown size={18} color="#64748B" />
+                </TouchableOpacity>
               </View>
-            </View>
 
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                name.trim() && location.trim()
-                  ? styles.primaryButtonActive
-                  : styles.primaryButtonDisabled,
-              ]}
-              onPress={handleSave}
-              disabled={loading || !name.trim() || !location.trim()}
-              activeOpacity={0.85}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <>
-                  <Text style={styles.primaryButtonText}>Save & Continue</Text>
-                  <ArrowRight size={18} color="#FFFFFF" strokeWidth={2.5} />
-                </>
+              {/* Field 4: Address */}
+              <View style={styles.fieldBlock}>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <Text style={styles.fieldLabel}>Location / Address</Text>
+                  <Text style={styles.fieldHelperLabel}>Optional</Text>
+                </View>
+                <View
+                  style={[
+                    styles.inputRow,
+                    focusedField === "address" && styles.inputRowFocused,
+                  ]}
+                >
+                  <BookUser size={18} color="#64748B" />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Locality / Village / Area"
+                    placeholderTextColor="#94A3B8"
+                    value={address}
+                    onFocus={() => setFocusedField("address")}
+                    onBlur={() => setFocusedField(null)}
+                    onChangeText={(val) => {
+                      setAddress(val);
+                      if (error) setError(null);
+                    }}
+                  />
+                </View>
+              </View>
+
+              {error && <Text style={styles.errorText}>{error}</Text>}
+
+              {/* Continue Button */}
+              <TouchableOpacity
+                style={[
+                  styles.continueBtn,
+                  loading && styles.continueBtnDisabled,
+                ]}
+                onPress={handleContinue}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.continueBtnText}>Continue</Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Skip for now text link */}
+              {onSkip && (
+                <TouchableOpacity
+                  style={styles.skipBtn}
+                  onPress={onSkip}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.skipBtnText}>Skip</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Footer */}
-          <View style={styles.footerContainer}>
-            <View style={styles.trustBadge}>
-              <ShieldCheck size={16} color="#059669" />
+          {/* Spacer */}
+          <View style={{ flex: 1, minHeight: 30 }} />
+
+          {/* ── Footer Trust Section ── */}
+          <View style={[styles.footerSection, { paddingBottom: Math.max(insets.bottom + 12, 24) }]}>
+            <View style={styles.trustBadgeRow}>
+              <UserLockIcon />
               <Text style={styles.trustBadgeText}>
-                Your information is safe and secure
+                Your health profile is strictly confidential & private
               </Text>
             </View>
             <Text style={styles.copyrightText}>
-              © 2026 JivniCare • Made with ❤️ in Bharat
+              © 2026 <Text style={styles.brandAccent}>JivniCare</Text> • Made with{" "}
+              <Text style={{ color: "#EF4444" }}>❤️</Text> in Bharat
             </Text>
           </View>
         </ScrollView>
+
+        {/* Gender Selection Bottom Sheet Modal */}
+        <Modal
+          visible={showGenderModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowGenderModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowGenderModal(false)}
+          >
+            <View style={styles.genderModalContent}>
+              <Text style={styles.genderModalTitle}>Select Gender</Text>
+              {(["Male", "Female", "Other"] as const).map((g) => (
+                <TouchableOpacity
+                  key={g}
+                  style={[
+                    styles.genderOptionRow,
+                    gender === g && styles.genderOptionRowActive,
+                  ]}
+                  onPress={() => {
+                    setGender(g);
+                    setShowGenderModal(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.genderOptionText,
+                      gender === g && styles.genderOptionTextActive,
+                    ]}
+                  >
+                    {g}
+                  </Text>
+                  {gender === g && (
+                    <Check size={18} color="#1B3F6B" strokeWidth={2.5} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  screenWrapper: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F1F5F9",
   },
   container: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 24,
     justifyContent: "space-between",
   },
-  headlineBlock: {
-    alignItems: "center",
-    marginBottom: 20,
+  heroContainer: {
+    position: "relative",
+    width: width,
+    height: 275,
+    backgroundColor: "#E2E8F0",
   },
-  headlineTitle: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: colors.textPrimary,
-    letterSpacing: -0.4,
+  heroImage: {
+    width: width,
+    height: 275,
   },
-  headlineSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: "500",
-    marginTop: 6,
+  gradientOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 90,
   },
-  phoneHighlight: {
-    fontWeight: "800",
-    color: colors.primary,
+  topBarRow: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 18,
+    zIndex: 20,
   },
-  errorBox: {
-    backgroundColor: "#FEF2F2",
+  frostedBackButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
     borderWidth: 1,
-    borderColor: "#FECACA",
-    borderRadius: radius.md,
-    padding: 12,
+    borderColor: "rgba(27, 63, 107, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#1B3F6B",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardContainer: {
+    paddingHorizontal: 18,
+    marginTop: -40,
+    zIndex: 30,
+  },
+  profileCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 24,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "rgba(226, 232, 240, 0.8)",
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0F172A",
+    letterSpacing: -0.3,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#64748B",
+    marginTop: 4,
     marginBottom: 16,
   },
-  errorText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#991B1B",
-    textAlign: "center",
-  },
-  formContainer: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: radius.xl,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "rgba(15, 23, 42, 0.06)",
-    ...shadows.card,
-  },
-  fieldGroup: {
-    marginBottom: 14,
+  fieldBlock: {
+    marginBottom: 12,
   },
   fieldLabel: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: colors.textMuted,
-    letterSpacing: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#334155",
     marginBottom: 6,
   },
-  optionalText: {
+  fieldHelperLabel: {
+    fontSize: 11,
     fontWeight: "500",
-    color: colors.textMuted,
+    color: "#64748B",
+    marginBottom: 6,
   },
-  inputBox: {
+  inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1.5,
     borderColor: "#E2E8F0",
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    height: 48,
-    gap: 8,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    height: 52,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  inputRowFocused: {
+    borderColor: "#5696C7",
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#1B3F6B",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
   },
   textInput: {
     flex: 1,
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#0F172A",
+    height: "100%",
+  },
+  pickerText: {
+    lineHeight: 52,
+  },
+  errorText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#EF4444",
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  continueBtn: {
+    backgroundColor: "#1B3F6B",
+    height: 54,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 10,
+    shadowColor: "#1B3F6B",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  continueBtnDisabled: {
+    opacity: 0.7,
+  },
+  continueBtnText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  skipBtn: {
+    marginTop: 14,
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  skipBtnText: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.textPrimary,
+    color: "#64748B",
   },
-  twoColRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  genderOptions: {
-    flexDirection: "row",
-    gap: 6,
-    height: 48,
+  footerSection: {
     alignItems: "center",
-  },
-  genderChip: {
-    flex: 1,
-    height: 48,
-    borderRadius: radius.md,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  genderChipActive: {
-    borderColor: colors.primary,
-    backgroundColor: "#EFF6FF",
-  },
-  genderChipText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.textSecondary,
-  },
-  genderChipTextActive: {
-    color: colors.primary,
-  },
-  primaryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.primary,
-    height: 52,
-    borderRadius: radius.md,
     gap: 8,
-    marginTop: 10,
-    ...shadows.button,
   },
-  primaryButtonActive: {
-    opacity: 1,
-  },
-  primaryButtonDisabled: {
-    opacity: 0.6,
-  },
-  primaryButtonText: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.textWhite,
-  },
-  footerContainer: {
-    alignItems: "center",
-    marginTop: 20,
-    gap: 6,
-  },
-  trustBadge: {
+  trustBadgeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
   trustBadgeText: {
     fontSize: 12,
-    fontWeight: "600",
-    color: colors.textSecondary,
+    fontWeight: "500",
+    color: "#64748B",
   },
   copyrightText: {
     fontSize: 11,
-    color: colors.textMuted,
+    color: "#94A3B8",
+    fontWeight: "500",
+  },
+  brandAccent: {
+    color: "#0284C7",
+    fontWeight: "700",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  genderModalContent: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  genderModalTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 14,
+  },
+  genderOptionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 6,
+  },
+  genderOptionRowActive: {
+    backgroundColor: "#EFF6FF",
+  },
+  genderOptionText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#334155",
+  },
+  genderOptionTextActive: {
+    color: "#1B3F6B",
+    fontWeight: "700",
   },
 });
+

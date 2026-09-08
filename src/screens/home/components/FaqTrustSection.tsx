@@ -31,15 +31,15 @@ export const FaqTrustSection: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Zero Wait Guarantee Banner */}
+      {/* Zero Wait Experience Banner */}
       <View style={styles.guaranteeBox}>
         <ShieldCheck size={24} color="#059669" />
         <View style={styles.guaranteeTextCol}>
           <Text style={styles.guaranteeTitle}>
-            JivniCare Zero-Wait Guarantee
+            JivniCare Zero-Wait Experience
           </Text>
           <Text style={styles.guaranteeDesc}>
-            Real-time queue tracking protects your precious time.
+            Real-time queue tracking helps you minimize waiting room time.
           </Text>
         </View>
       </View>

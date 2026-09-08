@@ -12,16 +12,16 @@ export interface ServiceableCity {
 
 export const SERVICEABLE_CITIES: ServiceableCity[] = [
   {
-    id: "jamui",
-    name: "Jamui",
-    state: "Bihar",
+    id: "deoghar",
+    name: "Deoghar",
+    state: "Jharkhand",
     status: "ACTIVE",
     description: "Live OPD Queues & Verified Clinics Active",
   },
   {
-    id: "deoghar",
-    name: "Deoghar",
-    state: "Jharkhand",
+    id: "jamui",
+    name: "Jamui",
+    state: "Bihar",
     status: "ACTIVE",
     description: "Live OPD Queues & Verified Clinics Active",
   },
@@ -61,7 +61,7 @@ interface PatientLocationState {
 }
 
 export const usePatientLocationStore = create<PatientLocationState>((set, get) => ({
-  selectedDistrict: "Jamui",
+  selectedDistrict: "Deoghar",
   language: "en",
   savedDoctorIds: [],
   isLocationSheetVisible: false,

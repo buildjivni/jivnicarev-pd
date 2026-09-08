@@ -6,13 +6,14 @@ import {
   FlatList,
   StyleSheet,
   Alert,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Calendar,
   Clock,
   MapPin,
-  Activity,
+  Radio,
   CheckCircle2,
   AlertCircle,
   XCircle,
@@ -44,7 +45,7 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({
   const handleCancelPrompt = (token: GeneratedToken) => {
     Alert.alert(
       "Cancel Token",
-      `Are you sure you want to cancel Token #${token.tokenNumber} with ${token.doctorName}?`,
+      `Are you sure you want to cancel Token #${token.tokenNumber} with ${token.doctorName}? This will release the token for other waiting patients. No cancellation fee applies.`,
       [
         { text: "No, Keep Token", style: "cancel" },
         {
@@ -138,9 +139,16 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({
 
               {/* Doctor Details */}
               <View style={styles.doctorInfoRow}>
-                <View style={styles.doctorAvatar}>
-                  <Stethoscope size={20} color={colors.primary} />
-                </View>
+                {item.doctorImage ? (
+                  <Image
+                    source={{ uri: item.doctorImage }}
+                    style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "#E2E8F0" }}
+                  />
+                ) : (
+                  <View style={styles.doctorAvatar}>
+                    <Stethoscope size={20} color={colors.primary} />
+                  </View>
+                )}
                 <View style={styles.doctorDetails}>
                   <Text style={styles.doctorName}>{item.doctorName}</Text>
                   <Text style={styles.doctorSpecialty}>{item.specialty}</Text>
@@ -177,7 +185,7 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({
                     style={styles.trackBtn}
                     onPress={() => onTrackQueue(item)}
                   >
-                    <Activity size={15} color="#FFFFFF" />
+                    <Radio size={15} color="#FFFFFF" strokeWidth={2.4} />
                     <Text style={styles.trackBtnText}>Track Queue</Text>
                   </TouchableOpacity>
                 </View>

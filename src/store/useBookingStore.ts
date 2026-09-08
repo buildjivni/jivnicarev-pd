@@ -14,6 +14,7 @@ export interface GeneratedToken {
   tokenNumber: number;
   doctorId: string;
   doctorName: string;
+  doctorImage?: string;
   specialty: string;
   clinicName: string;
   clinicAddress: string;
@@ -51,35 +52,15 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   selectedDoctor: null,
   selectedService: "clinic",
   patientDetails: {
-    name: "Rahul Kumar",
-    phone: "9876543210",
-    age: "29",
+    name: "",
+    phone: "",
+    age: "",
     gender: "Male",
     problem: "",
   },
   paymentMode: "CASH",
   generatedToken: null,
-  activeBookings: [
-    {
-      id: "tok_demo_active_01",
-      tokenNumber: 14,
-      doctorId: "doc_1",
-      doctorName: "Dr. Rajesh Sharma",
-      specialty: "General Physician",
-      clinicName: "City Health Clinic",
-      clinicAddress: "Station Road, Jamui",
-      currentTokenNumber: 9,
-      patientsAhead: 5,
-      estimatedWaitMinutes: 25,
-      paymentMode: "CASH",
-      status: "WAITING",
-      isEmergency: false,
-      bookedAt: new Date().toISOString(),
-      patientName: "Rahul Kumar",
-      patientPhone: "9876543210",
-      fee: "₹300",
-    },
-  ],
+  activeBookings: [],
 
   setSelectedDoctor: (doctor) => set({ selectedDoctor: doctor }),
   setSelectedService: (service) => set({ selectedService: service }),

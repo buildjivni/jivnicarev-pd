@@ -7,8 +7,7 @@ import {
   FlatList,
   StyleSheet,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { MapPin, X, Check, Crosshair } from "lucide-react-native";
+import { X, Check, Crosshair } from "lucide-react-native";
 import {
   MobileBottomNav,
   TabName,
@@ -22,6 +21,7 @@ import { QueueTrackingScreen } from "../screens/tracking/QueueTrackingScreen";
 import { MyBookingsScreen } from "../screens/patient/MyBookingsScreen";
 import { PatientProfileScreen } from "../screens/patient/PatientProfileScreen";
 import { EmergencyScreen } from "../screens/emergency/EmergencyScreen";
+import { SplashScreen } from "../screens/splash/SplashScreen";
 import { LoginScreen } from "../screens/auth/LoginScreen";
 import { OtpScreen } from "../screens/auth/OtpScreen";
 import { IdentityScreen } from "../screens/auth/IdentityScreen";
@@ -32,30 +32,32 @@ import {
   SERVICEABLE_CITIES,
 } from "../store/usePatientLocationStore";
 import { Doctor } from "../types/doctor";
-import { colors, radius, shadows, typography } from "../theme";
+import { colors, radius, shadows } from "../theme";
 
 type NavigationScreen =
+  | { type: "SPLASH" }
   | { type: "TAB"; tab: TabName }
+  | { type: "PROFILE" }
   | { type: "DOCTOR_DETAIL"; doctor: Doctor }
   | { type: "CHECKOUT"; doctor: Doctor }
   | { type: "CONFIRMATION"; token: GeneratedToken }
   | { type: "QUEUE_TRACKING"; token: GeneratedToken }
   | { type: "AUTH_LOGIN" }
-  | { type: "AUTH_OTP"; phone: string }
-  | { type: "AUTH_IDENTITY"; phone: string };
+  | { type: "AUTH_OTP"; phone?: string; email?: string; sessionId?: string }
+  | { type: "AUTH_IDENTITY"; phone?: string; email?: string; token?: string; user?: any };
 
 export const RootNavigator: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<NavigationScreen>({
-    type: "TAB",
-    tab: "home",
+    type: "SPLASH",
   });
   const [doctorFilter, setDoctorFilter] = useState<{
     specialty?: string;
     search?: string;
+    savedOnly?: boolean;
   }>({});
 
-  const { isAuthenticated, login, updateUser } = useAuthStore();
-  const { setSelectedDoctor, activeBookings } = useBookingStore();
+  const { login, isAuthenticated } = useAuthStore();
+  const { setSelectedDoctor } = useBookingStore();
   const {
     selectedDistrict,
     setSelectedDistrict,
@@ -75,8 +77,26 @@ export const RootNavigator: React.FC = () => {
     <View style={styles.container}>
       {/* ── Screen Switcher ─────────────────────────────────────── */}
       <View style={styles.screenContent}>
-        {/* TAB SCREENS */}
-        {currentScreen.type === "TAB" && currentScreen.tab === "home" && (
+        {/* SPLASH SCREEN */}
+        {currentScreen.type === "SPLASH" && (
+          <SplashScreen
+            onFinish={() => {
+              if (isAuthenticated) {
+                setCurrentScreen({ type: "TAB", tab: "home" });
+              } else {
+                setCurrentScreen({ type: "AUTH_LOGIN" });
+              }
+            }}
+          />
+        )}
+
+        {/* TAB SCREENS (Kept mounted for 0ms instantaneous tab switching) */}
+        <View
+          style={[
+            styles.tabScreenContainer,
+            { display: isTabActive && activeTabName === "home" ? "flex" : "none" },
+          ]}
+        >
           <HomeScreen
             onNavigateDoctors={(query) => {
               setDoctorFilter(query || {});
@@ -91,18 +111,24 @@ export const RootNavigator: React.FC = () => {
               setCurrentScreen({ type: "CHECKOUT", doctor });
             }}
             onNavigateProfile={() => {
-              setCurrentScreen({ type: "TAB", tab: "profile" });
+              setCurrentScreen({ type: "PROFILE" });
             }}
             onNavigateEmergency={() => {
               setCurrentScreen({ type: "TAB", tab: "emergency" });
             }}
           />
-        )}
+        </View>
 
-        {currentScreen.type === "TAB" && currentScreen.tab === "doctors" && (
+        <View
+          style={[
+            styles.tabScreenContainer,
+            { display: isTabActive && activeTabName === "doctors" ? "flex" : "none" },
+          ]}
+        >
           <DoctorsScreen
-            initialSpecialty={doctorFilter.specialty}
-            initialQuery={doctorFilter.search}
+            initialSpecialty={doctorFilter.specialty || "All"}
+            initialQuery={doctorFilter.search || ""}
+            initialSavedOnly={doctorFilter.savedOnly || false}
             onPressDoctor={(doctor) => {
               setSelectedDoctor(doctor);
               setCurrentScreen({ type: "DOCTOR_DETAIL", doctor });
@@ -112,22 +138,32 @@ export const RootNavigator: React.FC = () => {
               setCurrentScreen({ type: "CHECKOUT", doctor });
             }}
           />
-        )}
+        </View>
 
-        {currentScreen.type === "TAB" && currentScreen.tab === "emergency" && (
+        <View
+          style={[
+            styles.tabScreenContainer,
+            { display: isTabActive && activeTabName === "emergency" ? "flex" : "none" },
+          ]}
+        >
           <EmergencyScreen
             onBookEmergencyDoctor={(doctor) => {
               setSelectedDoctor(doctor);
               setCurrentScreen({ type: "CHECKOUT", doctor });
             }}
-            onExploreAllDoctors={() => {
-              setDoctorFilter({});
-              setCurrentScreen({ type: "TAB", tab: "doctors" });
+            onPressDoctor={(doctor) => {
+              setSelectedDoctor(doctor);
+              setCurrentScreen({ type: "DOCTOR_DETAIL", doctor });
             }}
           />
-        )}
+        </View>
 
-        {currentScreen.type === "TAB" && currentScreen.tab === "my-bookings" && (
+        <View
+          style={[
+            styles.tabScreenContainer,
+            { display: isTabActive && activeTabName === "my-bookings" ? "flex" : "none" },
+          ]}
+        >
           <MyBookingsScreen
             onTrackQueue={(token) => {
               setCurrentScreen({ type: "QUEUE_TRACKING", token });
@@ -137,23 +173,25 @@ export const RootNavigator: React.FC = () => {
               setCurrentScreen({ type: "TAB", tab: "doctors" });
             }}
           />
-        )}
+        </View>
 
-        {currentScreen.type === "TAB" && currentScreen.tab === "profile" && (
+        {/* PUSH SCREENS */}
+        {currentScreen.type === "PROFILE" && (
           <PatientProfileScreen
-            onNavigateHome={() =>
-              setCurrentScreen({ type: "TAB", tab: "home" })
-            }
-            onNavigateDoctors={() =>
-              setCurrentScreen({ type: "TAB", tab: "doctors" })
-            }
+            onNavigateHome={() => setCurrentScreen({ type: "TAB", tab: "home" })}
+            onNavigateDoctors={() => setCurrentScreen({ type: "TAB", tab: "doctors" })}
+            onNavigateBooking={(doctor) => {
+              setSelectedDoctor(doctor);
+              setCurrentScreen({ type: "CHECKOUT", doctor });
+            }}
+            onNavigateLogin={() => {
+              setCurrentScreen({ type: "AUTH_LOGIN" });
+            }}
             onLogoutSuccess={() => {
               setCurrentScreen({ type: "AUTH_LOGIN" });
             }}
           />
         )}
-
-        {/* PUSH SCREENS */}
         {currentScreen.type === "DOCTOR_DETAIL" && (
           <DoctorDetailScreen
             doctor={currentScreen.doctor}
@@ -210,8 +248,28 @@ export const RootNavigator: React.FC = () => {
         {/* AUTH SCREENS */}
         {currentScreen.type === "AUTH_LOGIN" && (
           <LoginScreen
-            onSendOtp={(phone) => {
-              setCurrentScreen({ type: "AUTH_OTP", phone });
+            onSendEmailCode={(email) => {
+              setCurrentScreen({ type: "AUTH_OTP", email });
+            }}
+            onSendOtp={(phone, sessionId) => {
+              setCurrentScreen({ type: "AUTH_OTP", phone, sessionId });
+            }}
+            onGoogleSuccess={(data) => {
+              if (data.needsProfile) {
+                setCurrentScreen({
+                  type: "AUTH_IDENTITY",
+                  phone: data.user?.phone || "",
+                  email: data.user?.email || "",
+                  token: data.token,
+                  user: data.user,
+                });
+              } else {
+                login(data.user, data.token);
+                if (data.user?.location || data.user?.address) {
+                  setSelectedDistrict(data.user.location || data.user.address);
+                }
+                setCurrentScreen({ type: "TAB", tab: "home" });
+              }
             }}
             onSkip={() => {
               setCurrentScreen({ type: "TAB", tab: "home" });
@@ -222,11 +280,39 @@ export const RootNavigator: React.FC = () => {
         {currentScreen.type === "AUTH_OTP" && (
           <OtpScreen
             phone={currentScreen.phone}
-            onVerifySuccess={() => {
-              setCurrentScreen({
-                type: "AUTH_IDENTITY",
-                phone: currentScreen.phone,
-              });
+            email={currentScreen.email}
+            sessionId={currentScreen.sessionId}
+            onVerifySuccess={(result) => {
+              if (result?.needsProfile) {
+                setCurrentScreen({
+                  type: "AUTH_IDENTITY",
+                  phone: currentScreen.phone || result.user?.phone || "",
+                  email: currentScreen.email || (result.user as any)?.email || "",
+                  token: result.token,
+                  user: result.user,
+                });
+              } else if (result?.user) {
+                const userObj = {
+                  id: result.user.id,
+                  name: result.user.name || "Patient",
+                  phone: result.user.phone || currentScreen.phone || "",
+                  email: (result.user as any).email || currentScreen.email || "",
+                  role: result.user.role || "PATIENT",
+                  location: (result.user as any).location || "Jamui",
+                  address: (result.user as any).address || "Jamui",
+                };
+                login(userObj, result.token);
+                if ((result.user as any).location) {
+                  setSelectedDistrict((result.user as any).location);
+                }
+                setCurrentScreen({ type: "TAB", tab: "home" });
+              } else {
+                setCurrentScreen({
+                  type: "AUTH_IDENTITY",
+                  phone: currentScreen.phone || "",
+                  email: currentScreen.email || "",
+                });
+              }
             }}
             onBack={() => setCurrentScreen({ type: "AUTH_LOGIN" })}
           />
@@ -234,25 +320,45 @@ export const RootNavigator: React.FC = () => {
 
         {currentScreen.type === "AUTH_IDENTITY" && (
           <IdentityScreen
-            phone={currentScreen.phone}
+            phone={currentScreen.phone || currentScreen.email || ""}
+            initialName={currentScreen.user?.name && currentScreen.user.name !== "Patient" ? currentScreen.user.name : ""}
+            token={currentScreen.token}
             onSaveProfile={(profile) => {
-              login({
-                id: `pat_${Date.now()}`,
+              const updatedUser = {
+                id: currentScreen.user?.id || `pat_${Date.now()}`,
                 name: profile.name,
-                phone: currentScreen.phone,
-                location: profile.location,
+                phone: currentScreen.phone || currentScreen.user?.phone || "",
+                email: currentScreen.email || currentScreen.user?.email || "",
+                role: "PATIENT",
+                age: profile.age,
+                gender: profile.gender,
                 address: profile.address,
                 pincode: profile.pincode,
-                email: profile.email,
-                dateOfBirth: profile.dob,
-                gender: profile.gender,
-              });
+                location: profile.address,
+              };
+              login(updatedUser, currentScreen.token || "patient_jwt_token");
+              setSelectedDistrict(profile.address);
+              setCurrentScreen({ type: "TAB", tab: "home" });
+            }}
+            onSkip={() => {
+              login(
+                {
+                  id: currentScreen.user?.id || `pat_${Date.now()}`,
+                  name: currentScreen.user?.name || "Patient",
+                  phone: currentScreen.phone || currentScreen.email || "",
+                  email: currentScreen.email || currentScreen.user?.email || "",
+                  role: "PATIENT",
+                  address: "Jamui, Bihar",
+                  pincode: "811307",
+                  location: "Jamui, Bihar",
+                },
+                currentScreen.token || "patient_jwt_token"
+              );
               setCurrentScreen({ type: "TAB", tab: "home" });
             }}
             onBack={() =>
               setCurrentScreen({
-                type: "AUTH_OTP",
-                phone: currentScreen.phone,
+                type: "AUTH_LOGIN",
               })
             }
           />
@@ -298,68 +404,68 @@ export const RootNavigator: React.FC = () => {
                 style={styles.closeBtn}
                 onPress={() => setIsLocationSheetVisible(false)}
               >
-                <X size={18} color={colors.textSecondary} />
+                <X size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            {/* Current GPS Location Action */}
+            {/* GPS Auto-Detect Option */}
             <TouchableOpacity
-              style={styles.gpsRow}
+              style={styles.gpsOption}
               onPress={() => {
-                setSelectedDistrict("Jamui");
+                setSelectedDistrict("Deoghar");
                 setIsLocationSheetVisible(false);
               }}
             >
               <View style={styles.gpsIconCircle}>
-                <Crosshair size={18} color={colors.primary} />
+                <Crosshair size={18} color="#5696C7" />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.gpsTitle}>Use Current GPS Location</Text>
-                <Text style={styles.gpsSubtitle}>Detect nearest clinic district</Text>
+              <View style={styles.gpsTextContainer}>
+                <Text style={styles.gpsTitle}>Use Current Location (GPS)</Text>
+                <Text style={styles.gpsSubtitle}>
+                  Auto-detect nearest OPD clinics & hospitals
+                </Text>
               </View>
             </TouchableOpacity>
 
-            <View style={styles.sheetDivider} />
+            <View style={styles.divider} />
 
-            {/* Serviceable Cities List */}
+            <Text style={styles.sectionHeader}>SERVICEABLE CITIES & DISTRICTS</Text>
+
+            {/* District List */}
             <FlatList
               data={SERVICEABLE_CITIES}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={{ paddingBottom: 20 }}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.cityList}
               renderItem={({ item }) => {
-                const isSelected = selectedDistrict.toLowerCase() === item.name.toLowerCase();
-                const isComingSoon = item.status === "COMING_SOON";
-
+                const isSelected = selectedDistrict === item.name;
                 return (
                   <TouchableOpacity
                     style={[
-                      styles.cityRow,
-                      isSelected && styles.cityRowSelected,
+                      styles.cityItem,
+                      isSelected && styles.cityItemSelected,
                     ]}
                     onPress={() => {
-                      if (!isComingSoon) {
-                        setSelectedDistrict(item.name);
-                        setIsLocationSheetVisible(false);
-                      }
+                      setSelectedDistrict(item.name);
+                      setIsLocationSheetVisible(false);
                     }}
-                    disabled={isComingSoon}
                   >
                     <View style={styles.cityInfo}>
-                      <View style={styles.cityNameRow}>
-                        <Text style={styles.cityName}>{item.name}</Text>
-                        <Text style={styles.cityState}>, {item.state}</Text>
-                        {isComingSoon && (
-                          <View style={styles.comingSoonBadge}>
-                            <Text style={styles.comingSoonText}>Coming Soon</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.cityDesc}>{item.description}</Text>
+                      <Text
+                        style={[
+                          styles.cityName,
+                          isSelected && styles.cityNameSelected,
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                      <Text style={styles.cityState}>
+                        {item.state} • {item.status === "ACTIVE" ? "OPD Active" : "Coming Soon"}
+                      </Text>
                     </View>
-
                     {isSelected && (
                       <View style={styles.checkCircle}>
-                        <Check size={14} color="#FFFFFF" />
+                        <Check size={14} color="#FFFFFF" strokeWidth={3} />
                       </View>
                     )}
                   </TouchableOpacity>
@@ -381,25 +487,32 @@ const styles = StyleSheet.create({
   screenContent: {
     flex: 1,
   },
+  tabScreenContainer: {
+    flex: 1,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(15, 23, 42, 0.45)",
     justifyContent: "flex-end",
   },
   bottomSheetContainer: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingTop: 12,
-    paddingBottom: 30,
-    maxHeight: "80%",
-    ...shadows.elevated,
+    paddingBottom: 28,
+    paddingHorizontal: 20,
+    maxHeight: "75%",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
   },
   sheetHandle: {
-    width: 36,
+    width: 40,
     height: 4,
-    backgroundColor: colors.borderLight,
+    backgroundColor: colors.slate300,
     borderRadius: 2,
     alignSelf: "center",
     marginBottom: 16,
@@ -412,7 +525,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     fontSize: 18,
-    fontWeight: "900",
+    fontWeight: "800",
     color: colors.textPrimary,
   },
   sheetSubtitle: {
@@ -424,93 +537,97 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.background,
-    alignItems: "center",
+    backgroundColor: colors.slate100,
     justifyContent: "center",
+    alignItems: "center",
   },
-  gpsRow: {
+  gpsOption: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.primary50,
     padding: 12,
-    borderRadius: radius.xl,
-    gap: 12,
+    backgroundColor: "#F0F9FF",
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.primary100,
+    borderColor: "#BAE6FD",
+    marginBottom: 16,
   },
   gpsIconCircle: {
     width: 36,
     height: 36,
-    borderRadius: radius.full,
+    borderRadius: 18,
     backgroundColor: "#FFFFFF",
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  gpsTextContainer: {
+    flex: 1,
   },
   gpsTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: colors.primary,
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1B3F6B",
   },
   gpsSubtitle: {
     fontSize: 11,
     color: colors.textSecondary,
+    marginTop: 1,
   },
-  sheetDivider: {
+  divider: {
     height: 1,
-    backgroundColor: colors.borderLight,
-    marginVertical: 14,
+    backgroundColor: colors.slate200,
+    marginBottom: 14,
   },
-  cityRow: {
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  cityList: {
+    paddingBottom: 10,
+  },
+  cityItem: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 12,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
+    marginBottom: 4,
   },
-  cityRowSelected: {
-    backgroundColor: colors.primary50,
+  cityItemSelected: {
+    backgroundColor: colors.primaryLight,
   },
   cityInfo: {
     flex: 1,
-    gap: 2,
-  },
-  cityNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
   },
   cityName: {
     fontSize: 15,
-    fontWeight: "800",
+    fontWeight: "600",
     color: colors.textPrimary,
   },
+  cityNameSelected: {
+    fontWeight: "800",
+    color: "#1B3F6B",
+  },
   cityState: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: "600",
-  },
-  comingSoonBadge: {
-    backgroundColor: colors.slate100,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.full,
-    marginLeft: 8,
-  },
-  comingSoonText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: colors.textMuted,
-  },
-  cityDesc: {
-    fontSize: 11,
-    color: colors.textMuted,
+    marginTop: 2,
   },
   checkCircle: {
     width: 22,
     height: 22,
     borderRadius: 11,
     backgroundColor: colors.primary,
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
   },
 });

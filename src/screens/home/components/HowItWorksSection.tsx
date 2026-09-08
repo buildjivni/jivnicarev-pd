@@ -7,7 +7,7 @@ const STEPS = [
   {
     step: "1",
     title: "Choose Your Doctor",
-    desc: "Search by specialty, location, or symptom from 100% verified doctors.",
+    desc: "Search by specialty, location, or symptom from verified doctor profiles.",
     icon: Search,
   },
   {

@@ -6,8 +6,8 @@ import { colors, radius, shadows } from "../../../theme";
 const PILLARS = [
   {
     id: "1",
-    title: "100% Verified Doctors",
-    desc: "Every doctor is physically verified with valid medical credentials.",
+    title: "Verified Doctor Profiles",
+    desc: "Every doctor profile undergoes verification with valid medical credentials.",
     icon: ShieldCheck,
     color: "#059669",
     bg: "#ECFDF5",

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   ScrollView,
@@ -7,21 +7,20 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { HomeHeader } from "./components/HomeHeader";
-import { LocationSelector } from "./components/LocationSelector";
 import { HeroCarousel } from "./components/HeroCarousel";
 import { SpecialtiesSection } from "./components/SpecialtiesSection";
 import { VerifiedDoctorsSection } from "./components/VerifiedDoctorsSection";
-import { TrustSection } from "./components/TrustSection";
 import { HowItWorksSection } from "./components/HowItWorksSection";
+import { TrustSection } from "./components/TrustSection";
 import { FaqTrustSection } from "./components/FaqTrustSection";
-import { CtaBannerSection } from "./components/CtaBannerSection";
 import { AppFooterBranding } from "../../components/layout/AppFooterBranding";
 import { usePatientLocationStore } from "../../store/usePatientLocationStore";
 import { Doctor } from "../../types/doctor";
+import { MOCK_DOCTORS } from "../../data/mockDoctors";
 import { colors } from "../../theme";
 
 interface HomeScreenProps {
-  onNavigateDoctors: (query?: { specialty?: string; search?: string }) => void;
+  onNavigateDoctors: (query?: { specialty?: string; search?: string; savedOnly?: boolean }) => void;
   onNavigateDoctorDetail: (doctor: Doctor) => void;
   onNavigateBooking: (doctor: Doctor) => void;
   onNavigateProfile: () => void;
@@ -38,6 +37,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [refreshing, setRefreshing] = useState(false);
   const { selectedDistrict } = usePatientLocationStore();
 
+  const districtDoctors = useMemo(() => {
+    const list = MOCK_DOCTORS.filter(
+      (d) => d.district?.toLowerCase() === selectedDistrict.toLowerCase()
+    );
+    return list.length > 0 ? list : MOCK_DOCTORS.filter((d) => d.district === "Deoghar");
+  }, [selectedDistrict]);
+
   const handleRefresh = () => {
     setRefreshing(true);
     setTimeout(() => {
@@ -49,6 +55,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <HomeHeader
         onPressSearch={() => onNavigateDoctors()}
+        onPressFavorites={() => onNavigateDoctors({ savedOnly: true })}
         onPressProfile={onNavigateProfile}
       />
       <ScrollView
@@ -64,9 +71,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           />
         }
       >
-        {/* Location Picker Row */}
-        <LocationSelector />
-
         {/* Hero Carousel */}
         <HeroCarousel
           onPressExplore={() => onNavigateDoctors()}
@@ -82,22 +86,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {/* Verified Recommended Doctors in District */}
         <VerifiedDoctorsSection
           district={selectedDistrict}
+          doctors={districtDoctors}
           onPressDoctor={onNavigateDoctorDetail}
           onPressBook={onNavigateBooking}
           onPressSeeAll={() => onNavigateDoctors()}
         />
 
-        {/* Trust & Guarantee Section */}
-        <TrustSection />
-
-        {/* 3-Step How It Works */}
+        {/* How OPD Booking & Live Queue Works */}
         <HowItWorksSection />
 
-        {/* Zero-Wait Guarantee & FAQ Accordion */}
-        <FaqTrustSection />
+        {/* Trust & Transparency Pillars */}
+        <TrustSection />
 
-        {/* Ready to see a Doctor CTA */}
-        <CtaBannerSection onPressCta={() => onNavigateDoctors()} />
+        {/* FAQ & Zero-Wait Experience */}
+        <FaqTrustSection />
 
         {/* Footer Branding */}
         <AppFooterBranding />

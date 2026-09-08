@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
   Share,
   Linking,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -15,15 +15,21 @@ import {
   ShieldCheck,
   RefreshCw,
   MapPin,
-  Phone,
   Clock,
   CheckCircle2,
   AlertTriangle,
   Navigation,
   Share2,
+  User,
+  Building2,
+  Check,
+  Radio,
+  Users,
+  Sparkles,
 } from "lucide-react-native";
-import { GeneratedToken } from "../../store/useBookingStore";
-import { colors, radius, shadows, typography } from "../../theme";
+import Svg, { Path } from "react-native-svg";
+import { GeneratedToken, useBookingStore } from "../../store/useBookingStore";
+import { trackQueueTokenApi } from "../../api/queueApi";
 
 interface QueueTrackingScreenProps {
   token: GeneratedToken;
@@ -31,27 +37,72 @@ interface QueueTrackingScreenProps {
   onViewBookings: () => void;
 }
 
+const BRAND_BLUE = "#5696C7";
+const NAVY_TEXT = "#0F172A";
+const VERIFIED_GREEN = "#047857";
+const DEFAULT_DOCTOR_AVATAR =
+  "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=400&q=80";
+
+const VerifiedBadge = () => (
+  <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.67-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.34 2.19c-1.39-.46-2.9-.2-3.91.81s-1.27 2.52-.81 3.91C2.63 9.33 1.75 10.57 1.75 12s.88 2.67 2.19 3.34c-.46 1.39-.2 2.9.81 3.91s2.52 1.27 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.67-.88 3.34-2.19c1.39.46 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34z"
+      fill="#1D9BF0"
+    />
+    <Path
+      d="M9.85 16.35l-3.5-3.5 1.41-1.41 2.09 2.08 6.5-6.49 1.41 1.41-7.91 7.91z"
+      fill="#FFFFFF"
+    />
+  </Svg>
+);
+
 export const QueueTrackingScreen: React.FC<QueueTrackingScreenProps> = ({
   token,
   onPressBack,
   onViewBookings,
 }) => {
+  const { selectedDoctor } = useBookingStore();
+  const doctorAvatar = token.doctorImage || selectedDoctor?.image || DEFAULT_DOCTOR_AVATAR;
   const [currentServing, setCurrentServing] = useState(
-    token.currentTokenNumber || 8
+    token.currentTokenNumber || 14
   );
+  const [liveTokensAhead, setLiveTokensAhead] = useState<number | null>(null);
+  const [liveEstimatedWait, setLiveEstimatedWait] = useState<number | null>(null);
+  const [tokenStatus, setTokenStatus] = useState(token.status);
   const [refreshing, setRefreshing] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState("Just now");
 
-  const tokensAhead = Math.max(0, token.tokenNumber - currentServing);
-  const estimatedWait = tokensAhead * 5;
+  const tokensAhead = liveTokensAhead !== null ? liveTokensAhead : Math.max(0, token.tokenNumber - currentServing);
+  const estimatedWait = liveEstimatedWait !== null ? liveEstimatedWait : tokensAhead * 15;
   const isMyTurn = tokensAhead <= 1;
 
+  const fetchLiveStatus = async (showLoading = false) => {
+    if (showLoading) setRefreshing(true);
+    try {
+      const res = await trackQueueTokenApi(token.id);
+      if (res.success && res.data) {
+        if (res.data.queue) {
+          setCurrentServing(res.data.queue.currentToken);
+          setLiveTokensAhead(res.data.queue.tokensAhead);
+          setLiveEstimatedWait(res.data.queue.estimatedWaitMinutes);
+        }
+        if (res.data.token?.status) {
+          setTokenStatus(res.data.token.status as any);
+        }
+      }
+    } catch {}
+    if (showLoading) setRefreshing(false);
+  };
+
+  React.useEffect(() => {
+    fetchLiveStatus();
+    const interval = setInterval(() => {
+      fetchLiveStatus();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [token.id]);
+
   const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-      setLastRefreshed("Just now");
-    }, 600);
+    fetchLiveStatus(true);
   };
 
   const handleOpenDirections = () => {
@@ -64,7 +115,7 @@ export const QueueTrackingScreen: React.FC<QueueTrackingScreenProps> = ({
   const handleShareToken = async () => {
     try {
       await Share.share({
-        message: `My live OPD Token is #${token.tokenNumber} for ${token.doctorName} at ${token.clinicName}. Live queue status: Current serving #${currentServing}, ${tokensAhead} patients ahead.`,
+        message: `My Live Consultation Token is #${token.tokenNumber} for ${token.doctorName} at ${token.clinicName}. Live queue status: Currently serving #${currentServing}, ${tokensAhead} patients ahead.`,
       });
     } catch {
       // Ignored
@@ -72,15 +123,27 @@ export const QueueTrackingScreen: React.FC<QueueTrackingScreenProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
       {/* Navigation Top Bar */}
       <View style={styles.navBar}>
-        <TouchableOpacity style={styles.iconButton} onPress={onPressBack}>
-          <ArrowLeft size={20} color={colors.textPrimary} />
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={onPressBack}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <ArrowLeft size={20} color={NAVY_TEXT} />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>Live OPD Queue</Text>
-        <TouchableOpacity style={styles.iconButton} onPress={handleShareToken}>
-          <Share2 size={20} color={colors.textPrimary} />
+        <View style={{ alignItems: "center" }}>
+          <Text style={styles.navTitle}>Live Queue Tracker</Text>
+          <Text style={styles.navSubtitle}>{token.clinicName || "Clinic OPD"}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={handleShareToken}
+          activeOpacity={0.7}
+        >
+          <Share2 size={18} color={NAVY_TEXT} />
         </TouchableOpacity>
       </View>
 
@@ -89,24 +152,25 @@ export const QueueTrackingScreen: React.FC<QueueTrackingScreenProps> = ({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Status Tracker Banner */}
+        {/* Live Status Beacon */}
         <View style={styles.liveBanner}>
           <View style={styles.livePill}>
             <View style={styles.livePulseDot} />
-            <Text style={styles.livePillText}>LIVE OPD TRACKER</Text>
+            <Text style={styles.livePillText}>LIVE IN CABIN</Text>
           </View>
           <TouchableOpacity
             style={styles.refreshButton}
             onPress={handleRefresh}
             disabled={refreshing}
+            activeOpacity={0.8}
           >
             <RefreshCw
-              size={14}
-              color={colors.primary}
+              size={13}
+              color={BRAND_BLUE}
               style={refreshing ? styles.rotating : undefined}
             />
             <Text style={styles.refreshButtonText}>
-              {refreshing ? "Updating..." : "Refresh"}
+              {refreshing ? "Updating..." : "Refresh Queue"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -120,50 +184,76 @@ export const QueueTrackingScreen: React.FC<QueueTrackingScreenProps> = ({
         >
           {isMyTurn ? (
             <View style={styles.urgentNoticeBox}>
-              <AlertTriangle size={16} color={colors.amber700} />
+              <AlertTriangle size={16} color="#B45309" />
               <Text style={styles.urgentNoticeText}>
-                Your turn is approaching! Please be present near the OPD room.
+                Your turn is next! Please be present outside the doctor's cabin.
               </Text>
             </View>
           ) : null}
 
           <View style={styles.mainTokenSection}>
-            <Text style={styles.tokenLabel}>YOUR TOKEN NUMBER</Text>
+            <Text style={styles.tokenLabel}>YOUR CONSULTATION TOKEN</Text>
             <Text style={styles.myTokenNumber}>#{token.tokenNumber}</Text>
-            <Text style={styles.patientName}>{token.patientName}</Text>
+            <View style={styles.patientNamePill}>
+              <User size={13} color={BRAND_BLUE} style={{ marginRight: 4 }} />
+              <Text style={styles.patientNameText}>{token.patientName}</Text>
+            </View>
           </View>
 
+          {/* Live 3-Metric Queue Status Cards */}
           <View style={styles.tokenComparisonRow}>
-            <View style={styles.comparisonCol}>
-              <Text style={styles.comparisonLabel}>Currently Serving</Text>
-              <Text style={styles.servingTokenNumber}>#{currentServing}</Text>
-            </View>
-            <View style={styles.comparisonDivider} />
-            <View style={styles.comparisonCol}>
-              <Text style={styles.comparisonLabel}>Patients Ahead</Text>
-              <Text style={styles.aheadCount}>
-                {tokensAhead === 0 ? "You're Next" : `${tokensAhead}`}
+            {/* Serving Now */}
+            <View style={[styles.queueStatCard, styles.statCardServing]}>
+              <View style={styles.statLabelRow}>
+                <CheckCircle2 size={11} color="#059669" style={{ marginRight: 3 }} />
+                <Text style={[styles.comparisonLabel, { color: "#047857" }]}>Serving</Text>
+              </View>
+              <Text style={[styles.comparisonValue, { color: "#047857" }]}>
+                #{currentServing}
               </Text>
             </View>
-            <View style={styles.comparisonDivider} />
-            <View style={styles.comparisonCol}>
-              <Text style={styles.comparisonLabel}>Est. Wait</Text>
-              <Text style={styles.waitDuration}>
+
+            {/* In Queue Ahead */}
+            <View style={[styles.queueStatCard, styles.statCardAhead]}>
+              <View style={styles.statLabelRow}>
+                <Users size={11} color="#64748B" style={{ marginRight: 3 }} />
+                <Text style={styles.comparisonLabel}>Ahead</Text>
+              </View>
+              <Text style={[styles.comparisonValue, { color: NAVY_TEXT }]}>
+                {tokensAhead === 0 ? "Next" : `${tokensAhead}`}
+              </Text>
+            </View>
+
+            {/* Est. Wait Time */}
+            <View style={[styles.queueStatCard, styles.statCardWait]}>
+              <View style={styles.statLabelRow}>
+                <Clock size={11} color={BRAND_BLUE} style={{ marginRight: 3 }} />
+                <Text style={[styles.comparisonLabel, { color: BRAND_BLUE }]}>Est. Wait</Text>
+              </View>
+              <Text style={[styles.comparisonValue, { color: BRAND_BLUE }]}>
                 {tokensAhead === 0 ? "Now" : `~${estimatedWait}m`}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Doctor & Clinic Info */}
+        {/* Doctor & Clinic Info Card */}
         <View style={styles.infoCard}>
-          <Text style={styles.cardTitle}>Consultation Details</Text>
+          <Text style={styles.cardHeading}>Consultation Details</Text>
           <View style={styles.doctorMetaRow}>
-            <View style={styles.doctorBadgeIcon}>
-              <CheckCircle2 size={18} color={colors.primary} />
+            <View style={styles.docAvatarWrapper}>
+              <Image
+                source={{ uri: doctorAvatar }}
+                style={styles.docAvatarImage}
+                resizeMode="cover"
+              />
+              <View style={styles.docOnlineDot} />
             </View>
             <View style={styles.doctorMetaText}>
-              <Text style={styles.doctorName}>{token.doctorName}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text style={styles.doctorName}>{token.doctorName}</Text>
+                <VerifiedBadge />
+              </View>
               <Text style={styles.specialty}>{token.specialty}</Text>
             </View>
           </View>
@@ -171,40 +261,45 @@ export const QueueTrackingScreen: React.FC<QueueTrackingScreenProps> = ({
           <View style={styles.divider} />
 
           <View style={styles.clinicMetaRow}>
-            <MapPin size={18} color={colors.textSecondary} />
+            <MapPin size={16} color="#64748B" style={{ marginTop: 2 }} />
             <View style={styles.clinicMetaText}>
               <Text style={styles.clinicName}>{token.clinicName}</Text>
               <Text style={styles.clinicAddress}>{token.clinicAddress}</Text>
             </View>
           </View>
 
-          {/* Get Directions Button */}
+          {/* Directions Button */}
           <TouchableOpacity
             style={styles.directionsBtn}
             onPress={handleOpenDirections}
+            activeOpacity={0.8}
           >
-            <Navigation size={16} color={colors.primary} />
+            <Navigation size={15} color={BRAND_BLUE} />
             <Text style={styles.directionsBtnText}>Get Directions to Clinic</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Zero-Wait Guarantee Notice */}
+        {/* Queue Protocol Notice */}
         <View style={styles.guaranteeBox}>
-          <ShieldCheck size={20} color={colors.emerald600} />
+          <ShieldCheck size={18} color={VERIFIED_GREEN} style={{ marginTop: 2 }} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.guaranteeTitle}>JivniCare Zero-Wait Guarantee</Text>
+            <Text style={styles.guaranteeTitle}>Live Clinic Queue Guidance</Text>
             <Text style={styles.guaranteeDesc}>
-              This queue updates in real time as the doctor calls each patient. Reach the clinic 10 minutes before your token.
+              Queue updates live as clinic staff calls each token at the counter. Please keep this screen open and remain attentive for counter announcements.
             </Text>
           </View>
         </View>
 
         {/* Back to Visits Button */}
-        <TouchableOpacity style={styles.viewVisitsBtn} onPress={onViewBookings}>
-          <Text style={styles.viewVisitsBtnText}>View All My Bookings</Text>
+        <TouchableOpacity
+          style={styles.viewVisitsBtn}
+          onPress={onViewBookings}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.viewVisitsBtnText}>View All My Appointments</Text>
         </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 30 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -213,7 +308,7 @@ export const QueueTrackingScreen: React.FC<QueueTrackingScreenProps> = ({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: "#F8FAFC",
   },
   navBar: {
     flexDirection: "row",
@@ -221,24 +316,27 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+    borderBottomColor: "#E2E8F0",
   },
   iconButton: {
     width: 38,
     height: 38,
-    borderRadius: radius.full,
-    backgroundColor: colors.background,
+    borderRadius: 19,
+    backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.borderLight,
   },
   navTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: colors.textPrimary,
+    color: NAVY_TEXT,
+  },
+  navSubtitle: {
+    fontSize: 11,
+    color: "#64748B",
+    marginTop: 1,
   },
   container: {
     flex: 1,
@@ -255,75 +353,80 @@ const styles = StyleSheet.create({
   livePill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.emerald50,
+    backgroundColor: "#ECFDF5",
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: radius.full,
+    borderRadius: 20,
     gap: 6,
     borderWidth: 1,
-    borderColor: colors.emerald100,
+    borderColor: "#A7F3D0",
   },
   livePulseDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.emerald600,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: VERIFIED_GREEN,
   },
   livePillText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: "800",
-    color: colors.emerald800,
+    color: VERIFIED_GREEN,
     letterSpacing: 0.5,
   },
   refreshButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radius.full,
-    gap: 4,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 5,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: "#E2E8F0",
   },
   refreshButtonText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: "700",
-    color: colors.primary,
+    color: BRAND_BLUE,
   },
   rotating: {
     transform: [{ rotate: "45deg" }],
   },
   trackerCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xxl,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
     padding: 20,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.elevated,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
   trackerCardTurnSoon: {
-    borderColor: colors.emerald300,
-    backgroundColor: colors.emerald50 + "30",
+    borderColor: "#A7F3D0",
+    backgroundColor: "#F0FDF4",
   },
   urgentNoticeBox: {
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.amber50,
+    backgroundColor: "#FEF3C7",
     padding: 10,
-    borderRadius: radius.lg,
+    borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: colors.amber200,
+    borderColor: "#FDE68A",
     marginBottom: 14,
   },
   urgentNoticeText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: "700",
-    color: colors.amber900,
+    color: "#92400E",
+    lineHeight: 16,
   },
   mainTokenSection: {
     alignItems: "center",
@@ -332,110 +435,149 @@ const styles = StyleSheet.create({
   tokenLabel: {
     fontSize: 11,
     fontWeight: "800",
-    color: colors.textMuted,
-    letterSpacing: 1.2,
+    color: "#64748B",
+    letterSpacing: 1,
     marginBottom: 4,
   },
   myTokenNumber: {
-    fontSize: 60,
+    fontSize: 56,
     fontWeight: "900",
-    color: colors.primary,
+    color: BRAND_BLUE,
     letterSpacing: -1,
   },
-  patientName: {
-    fontSize: 13,
+  patientNamePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    marginTop: 4,
+  },
+  patientNameText: {
+    fontSize: 12,
     fontWeight: "600",
-    color: colors.textSecondary,
-    marginTop: 2,
+    color: NAVY_TEXT,
   },
   tokenComparisonRow: {
     flexDirection: "row",
     width: "100%",
+    gap: 8,
     justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: colors.background,
-    padding: 14,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
   },
-  comparisonCol: {
+  queueStatCard: {
     flex: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
     alignItems: "center",
+    borderWidth: 1,
+  },
+  statCardServing: {
+    backgroundColor: "#ECFDF5",
+    borderColor: "#A7F3D0",
+  },
+  statCardAhead: {
+    backgroundColor: "#F8FAFC",
+    borderColor: "#E2E8F0",
+  },
+  statCardWait: {
+    backgroundColor: "#EFF6FF",
+    borderColor: "#BFDBFE",
+  },
+  statLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 2,
   },
   comparisonLabel: {
     fontSize: 10,
-    fontWeight: "600",
-    color: colors.textSecondary,
-    marginBottom: 3,
+    fontWeight: "700",
+    color: "#64748B",
   },
-  servingTokenNumber: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: colors.emerald700,
-  },
-  aheadCount: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: colors.textPrimary,
-  },
-  waitDuration: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: colors.primary,
-  },
-  comparisonDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: colors.borderLight,
+  comparisonValue: {
+    fontSize: 16,
+    fontWeight: "900",
   },
   infoCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xxl,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.soft,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
     gap: 12,
   },
-  cardTitle: {
+  cardHeading: {
     fontSize: 14,
-    fontWeight: "800",
-    color: colors.textPrimary,
+    fontWeight: "700",
+    color: NAVY_TEXT,
   },
   doctorMetaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
-  doctorBadgeIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary50,
+  docAvatarWrapper: {
+    position: "relative",
+    width: 44,
+    height: 44,
+  },
+  docAvatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#E2E8F0",
+    borderWidth: 1.5,
+    borderColor: "#EFF6FF",
+  },
+  docOnlineDot: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    backgroundColor: "#10B981",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+  },
+  docVerifiedBadge: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: BRAND_BLUE,
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: 6,
   },
   doctorMetaText: {
     flex: 1,
   },
   doctorName: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: colors.textPrimary,
+    fontSize: 14.5,
+    fontWeight: "700",
+    color: NAVY_TEXT,
   },
   specialty: {
     fontSize: 12,
     fontWeight: "600",
-    color: colors.primary,
+    color: BRAND_BLUE,
+    marginTop: 1,
   },
   divider: {
     height: 1,
-    backgroundColor: colors.borderLight,
+    backgroundColor: "#F1F5F9",
   },
   clinicMetaRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
   },
   clinicMetaText: {
     flex: 1,
@@ -444,63 +586,63 @@ const styles = StyleSheet.create({
   clinicName: {
     fontSize: 13,
     fontWeight: "700",
-    color: colors.textPrimary,
+    color: NAVY_TEXT,
   },
   clinicAddress: {
-    fontSize: 12,
-    color: colors.textSecondary,
+    fontSize: 11.5,
+    color: "#64748B",
+    lineHeight: 16,
   },
   directionsBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primary50,
+    backgroundColor: "#F0F7FF",
     paddingVertical: 10,
-    borderRadius: radius.full,
+    borderRadius: 12,
     gap: 6,
     borderWidth: 1,
-    borderColor: colors.primary100,
+    borderColor: "#BAE6FD",
     marginTop: 4,
   },
   directionsBtnText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: "700",
-    color: colors.primary,
+    color: BRAND_BLUE,
   },
   guaranteeBox: {
     flexDirection: "row",
-    backgroundColor: colors.emerald50,
+    backgroundColor: "#ECFDF5",
     padding: 14,
-    borderRadius: radius.xl,
+    borderRadius: 16,
     gap: 10,
     borderWidth: 1,
-    borderColor: colors.emerald100,
+    borderColor: "#A7F3D0",
     alignItems: "flex-start",
   },
   guaranteeTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: colors.emerald900,
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: "#065F46",
     marginBottom: 2,
   },
   guaranteeDesc: {
     fontSize: 11,
-    color: colors.emerald800,
+    color: "#047857",
     lineHeight: 16,
   },
   viewVisitsBtn: {
-    backgroundColor: colors.surface,
+    backgroundColor: "#FFFFFF",
     paddingVertical: 14,
-    borderRadius: radius.full,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.soft,
+    borderColor: "#E2E8F0",
   },
   viewVisitsBtnText: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: "700",
-    color: colors.textPrimary,
+    color: NAVY_TEXT,
   },
 });

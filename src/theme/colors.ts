@@ -4,24 +4,24 @@
  */
 export const colors = {
   // Brand Anchors
-  primary: "#5696C7",           // Primary Brand Action Blue
+  primary: "#5696C7",           // Primary Brand Sky Blue
   primaryHover: "#1A4D7C",
-  primaryLight: "rgba(86, 150, 199, 0.10)",
-  primaryMuted: "rgba(86, 150, 199, 0.05)",
+  primaryLight: "rgba(86, 150, 199, 0.12)",
+  primaryMuted: "rgba(86, 150, 199, 0.06)",
   primary50: "#F0F7FC",
   primary100: "#DCECF8",
   primary200: "#B9DCF1",
   primary500: "#5696C7",
-  primary600: "#3A7CB3",
-  primary700: "#2B6292",
+  primary600: "#3d83bc",
+  primary700: "#1A4D7C",
   primary900: "#1B3F6B",
 
-  secondary: "#4B9F5F",         // Primary Brand Healthcare Green
-  secondaryHover: "#3d854e",
+  secondary: "#4B9F5F",         // Brand Health Green (Matches Leaf Logo)
+  secondaryHover: "#3E8650",
   secondaryLight: "#ECFDF5",
 
-  navy: "#1B3F6B",              // Brand Navy (Headings & deep text)
-  navyForeground: "rgba(27, 63, 107, 0.9)",
+  navy: "#1B3F6B",              // Official Brand Navy
+  navyForeground: "#1B3F6B",
   navyMuted: "rgba(27, 63, 107, 0.6)",
   navyBorder: "rgba(27, 63, 107, 0.1)",
 
@@ -36,8 +36,8 @@ export const colors = {
   inputSurface: "#F1F5F9",      // Slate-100 search / input background
   accent: "#F0F9FF",            // Sky-50
 
-  // High-Contrast Text Scale
-  textPrimary: "#0F172A",       // Slate-900
+  // High-Contrast Text Scale (Navy Blue, not black)
+  textPrimary: "#0F172A",       // Navy Blue - Slate 900
   textSecondary: "#475569",     // Slate-600
   textMuted: "#94A3B8",         // Slate-400
   muted: "#94A3B8",

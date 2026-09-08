@@ -1,19 +1,26 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+} from "react-native";
+import Svg, { Path, Circle, Rect } from "react-native-svg";
 import {
   MapPin,
-  Clock,
-  Heart,
   Star,
   Calendar,
-  CheckCircle2,
   Zap,
+  Heart,
+  ChevronRight,
 } from "lucide-react-native";
-import { colors, radius, shadows } from "../../theme";
 import { Doctor } from "../../types/doctor";
 
 interface DoctorCardProps {
   doctor: Doctor;
+  variant?: "horizontal" | "vertical";
   onPress?: (doctor: Doctor) => void;
   onPressCard?: (doctor: Doctor) => void;
   onBook?: (doctor: Doctor) => void;
@@ -22,145 +29,241 @@ interface DoctorCardProps {
   isWishlisted?: boolean;
 }
 
+// High-quality hospital / clinic exterior cover image fallback matching reference
+const DEFAULT_COVER_IMAGE =
+  "https://images.unsplash.com/photo-1587351021759-3e566b6af7cc?auto=format&fit=crop&w=800&q=80";
+
+// High-quality doctor portrait fallback matching reference
+const DEFAULT_DOCTOR_AVATAR =
+  "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=400&q=80";
+
+const VerifiedBadge = () => (
+  <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
+    {/* Twitter / Instagram style scalloped starburst badge */}
+    <Path
+      d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.67-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.34 2.19c-1.39-.46-2.9-.2-3.91.81s-1.27 2.52-.81 3.91C2.63 9.33 1.75 10.57 1.75 12s.88 2.67 2.19 3.34c-.46 1.39-.2 2.9.81 3.91s2.52 1.27 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.67-.88 3.34-2.19c1.39.46 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34z"
+      fill="#1D9BF0"
+    />
+    <Path
+      d="M9.85 16.35l-3.5-3.5 1.41-1.41 2.09 2.08 6.5-6.49 1.41 1.41-7.91 7.91z"
+      fill="#FFFFFF"
+    />
+  </Svg>
+);
+
+const ClinicLocationIcon = () => (
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M12 2C7.86 2 4.5 5.36 4.5 9.5C4.5 14.86 12 22 12 22C12 22 19.5 14.86 19.5 9.5C19.5 5.36 16.14 2 12 2Z"
+      fill="#5696C7"
+    />
+    <Path
+      d="M12 6.5V12.5"
+      stroke="#FFFFFF"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+    />
+    <Path
+      d="M9 9.5H15"
+      stroke="#FFFFFF"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+    />
+  </Svg>
+);
+
 export const DoctorCard: React.FC<DoctorCardProps> = ({
   doctor,
+  variant = "vertical",
   onPress,
   onPressCard,
   onBook,
   onPressBook,
   onToggleWishlist,
-  isWishlisted = false,
+  isWishlisted: propIsWishlisted = false,
 }) => {
-  const isEmergency = doctor.emergencyAvailable || doctor.isEmergencySupported;
+  const [internalWishlisted, setInternalWishlisted] = useState(propIsWishlisted);
+  const [imgError, setImgError] = useState(false);
+  const [coverError, setCoverError] = useState(false);
+
+  React.useEffect(() => {
+    setInternalWishlisted(propIsWishlisted);
+  }, [propIsWishlisted]);
+
+  const isEmergency =
+    doctor.emergencyAvailable ?? doctor.isEmergencySupported ?? true;
+
   const handleCardPress = () => {
     if (onPress) onPress(doctor);
     else if (onPressCard) onPressCard(doctor);
   };
+
   const handleBookPress = () => {
     if (onBook) onBook(doctor);
     else if (onPressBook) onPressBook(doctor);
   };
 
+  const handleHeartPress = (e?: any) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const next = !internalWishlisted;
+    setInternalWishlisted(next);
+    if (onToggleWishlist) {
+      onToggleWishlist(doctor.id);
+    }
+  };
+
+  const isCardHorizontal = variant === "horizontal";
+  const doctorName = doctor.name || "Dr. Rajesh Kumar";
+  const specialty = doctor.specialty || "General Physician";
+  const expYears = doctor.experienceYears || 12;
+  const rating = Number(doctor.rating || 4.9).toFixed(1);
+  const clinicName = doctor.clinicName || doctor.clinic || "JivniCare Partner Clinic";
+  const clinicAddress = doctor.clinicAddress || doctor.location || (doctor.district ? `${doctor.district} Medical Center` : "Main Road");
+  const fee = doctor.consultationFee || doctor.fee || 500;
+
+  const coverUri =
+    !coverError && (doctor.clinicImage || DEFAULT_COVER_IMAGE)
+      ? doctor.clinicImage || DEFAULT_COVER_IMAGE
+      : DEFAULT_COVER_IMAGE;
+
+  const avatarUri =
+    !imgError && (doctor.image || DEFAULT_DOCTOR_AVATAR)
+      ? doctor.image || DEFAULT_DOCTOR_AVATAR
+      : DEFAULT_DOCTOR_AVATAR;
+
   return (
     <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.92}
+      style={[
+        styles.card,
+        isCardHorizontal ? styles.horizontalCard : styles.verticalCard,
+      ]}
+      activeOpacity={0.94}
       onPress={handleCardPress}
     >
-      {/* ── 1. Top Cover Banner ── */}
-      <View style={styles.coverBanner}>
-        <View style={styles.coverOverlay}>
-          {isEmergency && (
-            <View style={styles.emergencyBadge}>
-              <View style={styles.emergencyDot} />
-              <Text style={styles.emergencyText}>EMERGENCY</Text>
-            </View>
-          )}
-          <Text style={styles.coverClinicName} numberOfLines={1}>
-            {doctor.clinicName || "JivniCare Partner Clinic"}
-          </Text>
-        </View>
+      {/* ── 1. COVER / HOSPITAL IMAGE AREA ── */}
+      <View style={styles.coverWrapper}>
+        <Image
+          source={{ uri: coverUri }}
+          style={styles.coverImage}
+          resizeMode="cover"
+          onError={() => setCoverError(true)}
+        />
 
-        {/* Floating Heart Button */}
+        {/* ── 2. Top-Left: EMERGENCY BADGE ── */}
+        {isEmergency && (
+          <View style={styles.emergencyBadge}>
+            <View style={styles.redDot} />
+            <Text style={styles.ambulanceEmoji}>🚑</Text>
+            <Text style={styles.emergencyBadgeText}>EMERGENCY</Text>
+          </View>
+        )}
+
+        {/* ── 3. Top-Right: FAVORITE / HEART BUTTON ── */}
         <TouchableOpacity
-          style={styles.floatingHeart}
-          onPress={() => onToggleWishlist && onToggleWishlist(doctor.id)}
-          activeOpacity={0.7}
+          style={styles.favouriteButton}
+          onPress={handleHeartPress}
+          activeOpacity={0.8}
         >
           <Heart
             size={18}
-            color={isWishlisted ? "#EF4444" : "#64748B"}
-            fill={isWishlisted ? "#EF4444" : "none"}
+            color={internalWishlisted ? "#EF4444" : "#475569"}
+            fill={internalWishlisted ? "#EF4444" : "none"}
             strokeWidth={2}
           />
         </TouchableOpacity>
+
+        {/* ── 7. RATING BADGE (Lower-Right of Cover Image) ── */}
+        <View style={styles.ratingBadge}>
+          <Star size={13} color="#FBBF24" fill="#FBBF24" />
+          <Text style={styles.ratingText}>{rating}</Text>
+        </View>
       </View>
 
-      {/* ── 2. Doctor Info Body ── */}
-      <View style={styles.cardBody}>
-        {/* Avatar & Rating Row */}
-        <View style={styles.avatarRow}>
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarInitial}>
-                {doctor.name ? doctor.name.replace(/^Dr\.\s*/i, "")[0] : "D"}
+      {/* ── CARD CONTENT AREA ── */}
+      <View style={styles.contentContainer}>
+        {/* ── 4 & 5. DOCTOR AVATAR + IDENTITY ROW ── */}
+        <View style={styles.identityRow}>
+          {/* Circular Avatar with Overlap & Green Availability Indicator */}
+          <View style={styles.avatarWrapper}>
+            <Image
+              source={{ uri: avatarUri }}
+              style={styles.avatarImage}
+              resizeMode="cover"
+              onError={() => setImgError(true)}
+            />
+            {/* Green Availability Indicator */}
+            <View style={styles.greenAvailabilityDot} />
+          </View>
+
+          {/* Doctor Name & Specialty/Experience */}
+          <View style={styles.doctorInfoCol}>
+            {/* Doctor Name + Verified Badge */}
+            <View style={styles.nameWithBadge}>
+              <Text style={styles.doctorNameText} numberOfLines={1}>
+                {doctorName}
               </Text>
+              <View style={styles.verifiedBadgeContainer}>
+                <VerifiedBadge />
+              </View>
             </View>
-            <View style={styles.onlineStatusDot} />
-          </View>
 
-          <View style={styles.ratingBadge}>
-            <Star size={13} color="#F59E0B" fill="#F59E0B" />
-            <Text style={styles.ratingText}>
-              {doctor.rating?.toFixed(1) || "4.9"}{" "}
-              <Text style={styles.reviewCountText}>
-                ({doctor.reviewCount || 128})
-              </Text>
+            {/* 6. Specialty • Experience Line */}
+            <Text style={styles.specialtyExpText} numberOfLines={1}>
+              {specialty}  •  {expYears}+ Years Exp.
             </Text>
           </View>
         </View>
 
-        {/* Doctor Name & Verified Badge */}
-        <View style={styles.nameRow}>
-          <Text style={styles.doctorName} numberOfLines={1}>
-            {doctor.name}
-          </Text>
-          <CheckCircle2 size={16} color="#0284C7" fill="#E0F2FE" />
-        </View>
-
-        {/* Specialty & Experience */}
-        <View style={styles.specialtyRow}>
-          <View style={styles.specialtyPill}>
-            <Text style={styles.specialtyText}>{doctor.specialty}</Text>
+        {/* ── 8. CLINIC / HOSPITAL LOCATION SECTION ── */}
+        <View style={styles.locationSectionCard}>
+          <View style={styles.locationPinBox}>
+            <ClinicLocationIcon />
           </View>
-          <Text style={styles.expText}>
-            {doctor.experienceYears || 10}+ Years Exp.
-          </Text>
-        </View>
 
-        {/* Clinic & Address Box */}
-        <View style={styles.clinicInfoBox}>
-          <MapPin size={14} color="#0284C7" strokeWidth={2.2} />
-          <View style={styles.clinicTextCol}>
-            <Text style={styles.clinicTitle} numberOfLines={1}>
-              {doctor.clinicName || "Jamui City OPD & Clinic"}
+          <View style={styles.locationTextCol}>
+            <Text style={styles.hospitalNameText} numberOfLines={1}>
+              {clinicName}
             </Text>
-            <Text style={styles.clinicAddress} numberOfLines={1}>
-              {doctor.clinicAddress || "Main Hospital Road, Jamui"}
+            <Text style={styles.hospitalAddressText} numberOfLines={1}>
+              {clinicAddress}
             </Text>
           </View>
         </View>
 
-        {/* Availability Status Chip */}
-        <View style={styles.statusBox}>
-          <View style={styles.statusLeft}>
-            <View style={styles.liveDot} />
-            <Text style={styles.statusText}>Live OPD Active</Text>
+        {/* ── 9 & 10. OPD STATUS & EMERGENCY AVAILABILITY ── */}
+        <View style={styles.statusPillsRow}>
+          {/* 9. OPD Status */}
+          <View style={styles.opdStatusPill}>
+            <View style={styles.opdGreenDot} />
+            <Text style={styles.opdStatusText}>OPD: Open Today</Text>
           </View>
+
+          {/* 10. Emergency Availability */}
           {isEmergency && (
-            <View style={styles.erTag}>
-              <Zap size={11} color="#DC2626" />
-              <Text style={styles.erTagText}>24/7 ER</Text>
+            <View style={styles.emergencyStatusPill}>
+              <Zap size={13} color="#E11D48" fill="#E11D48" />
+              <Text style={styles.emergencyStatusText}>24/7 Emergency</Text>
             </View>
           )}
         </View>
 
-        {/* Fee & Action CTA Row */}
-        <View style={styles.actionRow}>
-          <View style={styles.feeCol}>
-            <Text style={styles.feeLabel}>FEE</Text>
-            <Text style={styles.feeAmount}>
-              ₹{doctor.consultationFee || 500}
-            </Text>
+        {/* ── 11 & 12. CONSULTATION FEE & BOOK SLOT CTA ── */}
+        <View style={styles.bottomActionRow}>
+          {/* 11. Consultation Fee */}
+          <View style={styles.consultationFeeCol}>
+            <Text style={styles.feeLabel}>Consultation Fee</Text>
+            <Text style={styles.feeAmount}>₹{fee}</Text>
           </View>
 
+          {/* 12. Book Slot CTA Button */}
           <TouchableOpacity
-            style={styles.bookButton}
+            style={styles.bookSlotButton}
             onPress={handleBookPress}
-            activeOpacity={0.85}
+            activeOpacity={0.88}
           >
-            <Calendar size={15} color="#FFFFFF" strokeWidth={2.2} />
-            <Text style={styles.bookButtonText}>Book OPD Token</Text>
+            <Calendar size={17} color="#FFFFFF" strokeWidth={2.2} />
+            <Text style={styles.bookSlotButtonText}>Book Slot</Text>
+            <ChevronRight size={17} color="#FFFFFF" strokeWidth={2.8} />
           </TouchableOpacity>
         </View>
       </View>
@@ -170,259 +273,331 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    width: 290,
     backgroundColor: "#FFFFFF",
-    borderRadius: radius.xl,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(15, 23, 42, 0.08)",
+    borderColor: "#F1F5F9",
     overflow: "hidden",
-    ...shadows.card,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#0F172A",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
-  coverBanner: {
-    height: 100,
-    backgroundColor: "#EFF6FF",
-    justifyContent: "space-between",
-    padding: 12,
+  verticalCard: {
+    width: "100%",
+    marginBottom: 16,
   },
-  coverOverlay: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingRight: 40,
+  horizontalCard: {
+    width: 340,
+    marginRight: 14,
   },
+
+  /* ── 1. Cover Image ── */
+  coverWrapper: {
+    width: "100%",
+    height: 165,
+    backgroundColor: "#E2E8F0",
+    position: "relative",
+  },
+  coverImage: {
+    width: "100%",
+    height: "100%",
+  },
+
+  /* ── 2. Emergency Badge ── */
   emergencyBadge: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FEF2F2",
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.full,
     gap: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
-  emergencyDot: {
+  redDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: "#EF4444",
   },
-  emergencyText: {
-    fontSize: 9,
+  ambulanceEmoji: {
+    fontSize: 11,
+    marginRight: 1,
+  },
+  emergencyBadgeText: {
+    fontSize: 10,
     fontWeight: "800",
     color: "#DC2626",
+    letterSpacing: 0.3,
   },
-  coverClinicName: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.navy,
-  },
-  floatingHeart: {
+
+  /* ── 3. Favourite Button ── */
+  favouriteButton: {
     position: "absolute",
-    top: 10,
-    right: 10,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    top: 12,
+    right: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    ...shadows.soft,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
-  cardBody: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  avatarRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginTop: -26,
-    marginBottom: 8,
-  },
-  avatarContainer: {
-    position: "relative",
-  },
-  avatarCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 16,
-    backgroundColor: "#E0F2FE",
-    borderWidth: 2.5,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadows.soft,
-  },
-  avatarInitial: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: colors.primary,
-  },
-  onlineStatusDot: {
-    position: "absolute",
-    bottom: -2,
-    right: -2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#10B981",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
+
+  /* ── Rating Badge on Cover Image ── */
   ratingBadge: {
+    position: "absolute",
+    bottom: 10,
+    right: 12,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFBEB",
-    borderWidth: 1,
-    borderColor: "#FDE68A",
+    backgroundColor: "rgba(15, 23, 42, 0.88)", // Dark slate container
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.full,
+    paddingVertical: 3.5,
+    borderRadius: 8,
     gap: 4,
   },
   ratingText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#92400E",
-  },
-  reviewCountText: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: "#B45309",
-  },
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 4,
-  },
-  doctorName: {
-    fontSize: 16,
+    fontSize: 12.5,
     fontWeight: "800",
-    color: colors.textPrimary,
-    letterSpacing: -0.2,
+    color: "#FFFFFF",
   },
-  specialtyRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
+
+  /* ── Card Content Container ── */
+  contentContainer: {
+    paddingHorizontal: 14,
+    paddingBottom: 16,
+    paddingTop: 0,
   },
-  specialtyPill: {
-    backgroundColor: "#F0F9FF",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-  },
-  specialtyText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  expText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: "500",
-  },
-  clinicInfoBox: {
+
+  /* ── Doctor Identity Area ── */
+  identityRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "#F8FAFC",
-    padding: 10,
-    borderRadius: radius.md,
-    gap: 8,
-    marginBottom: 10,
   },
-  clinicTextCol: {
+  avatarWrapper: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 3.5,
+    borderColor: "#FFFFFF",
+    backgroundColor: "#E2E8F0",
+    marginTop: -48, // Exact overlap across cover boundary
+    position: "relative",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.18,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 48,
+  },
+  greenAvailabilityDot: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#10B981",
+    borderWidth: 2.5,
+    borderColor: "#FFFFFF",
+  },
+  doctorInfoCol: {
     flex: 1,
+    marginLeft: 12,
+    marginTop: 6,
+    gap: 2,
   },
-  clinicTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.textPrimary,
+  nameWithBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
   },
-  clinicAddress: {
-    fontSize: 11,
-    color: colors.textSecondary,
+  doctorNameText: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#0F172A",
+    letterSpacing: -0.3,
+  },
+  verifiedBadgeContainer: {
+    justifyContent: "center",
+  },
+  specialtyExpText: {
+    fontSize: 12.5,
+    fontWeight: "500",
+    color: "#64748B",
     marginTop: 1,
   },
-  statusBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#F0FDF4",
+
+  /* ── Location / Clinic Section ── */
+  locationSectionCard: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#DCFCE7",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.sm,
-    marginBottom: 14,
-  },
-  statusLeft: {
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginTop: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
   },
-  liveDot: {
+  locationPinBox: {
+    marginRight: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  locationTextCol: {
+    flex: 1,
+    gap: 1,
+  },
+  hospitalNameText: {
+    fontSize: 13.5,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  hospitalAddressText: {
+    fontSize: 11.5,
+    fontWeight: "500",
+    color: "#64748B",
+    marginTop: 1,
+  },
+
+  /* ── Availability Status Pills ── */
+  statusPillsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 11,
+  },
+  opdStatusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#D1FAE5",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 5,
+  },
+  opdGreenDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: "#10B981",
   },
-  statusText: {
-    fontSize: 11,
+  opdStatusText: {
+    fontSize: 11.5,
     fontWeight: "700",
     color: "#065F46",
   },
-  erTag: {
+  emergencyStatusPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FEF2F2",
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: radius.xs,
-    gap: 2,
+    backgroundColor: "#FFF1F2",
+    borderWidth: 1,
+    borderColor: "#FFE4E6",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 4,
   },
-  erTagText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#DC2626",
+  emergencyStatusText: {
+    fontSize: 11.5,
+    fontWeight: "700",
+    color: "#BE123C",
   },
-  actionRow: {
+
+  /* ── Bottom Fee & Booking CTA ── */
+  bottomActionRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    marginTop: 13,
+    paddingTop: 2,
   },
-  feeCol: {
+  consultationFeeCol: {
+    flex: 1,
     alignItems: "flex-start",
   },
   feeLabel: {
-    fontSize: 9,
-    fontWeight: "700",
-    color: colors.textMuted,
-    letterSpacing: 0.5,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#64748B",
   },
   feeAmount: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#0F172A",
+    marginTop: 1,
   },
-  bookButton: {
-    flex: 1,
+  bookSlotButton: {
+    flex: 0,
+    paddingHorizontal: 20,
+    height: 44,
+    backgroundColor: "#5696C7", // JivniCare Brand Blue
+    borderRadius: 22,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primary,
-    height: 42,
-    borderRadius: radius.md,
-    gap: 6,
-    ...shadows.button,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#5696C7",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
-  bookButtonText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.textWhite,
+  bookSlotButtonText: {
+    fontSize: 14.5,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    marginHorizontal: 6,
   },
 });

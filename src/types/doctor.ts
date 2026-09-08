@@ -8,6 +8,7 @@ export interface Doctor {
   clinic?: string;
   clinicName?: string;
   clinicAddress?: string;
+  district?: string;
   location?: string;
   fullAddress?: string;
   image?: string;
@@ -26,4 +27,10 @@ export interface Doctor {
   nextAvailable?: string;
   weeklySchedule?: Record<string, { start?: string; end?: string; isAvailable?: boolean }>;
   holidayOverride?: { isHoliday?: boolean; reason?: string };
+  about?: string;
+  education?: string;
+  qualifications?: string;
+  languages?: string[];
+  registrationNumber?: string;
+  medicalCouncil?: string;
 }
