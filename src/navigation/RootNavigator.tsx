@@ -283,6 +283,9 @@ export const RootNavigator: React.FC = () => {
             email={currentScreen.email}
             sessionId={currentScreen.sessionId}
             onVerifySuccess={(result) => {
+              if (result?.token) {
+                useAuthStore.getState().setToken(result.token);
+              }
               if (result?.needsProfile) {
                 setCurrentScreen({
                   type: "AUTH_IDENTITY",

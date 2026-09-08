@@ -123,6 +123,7 @@ export const IdentityScreen: React.FC<IdentityScreenProps> = ({
     }
 
     const safeAddress = address.trim() || "Jamui, Bihar";
+    const apiAddress = safeAddress.length >= 5 ? safeAddress : `${safeAddress}, Bihar`;
     setError(null);
     setLoading(true);
 
@@ -131,14 +132,17 @@ export const IdentityScreen: React.FC<IdentityScreenProps> = ({
     const approximateDob = `${birthYear}-01-01`;
 
     try {
-      await updateProfileApi({
-        name: name.trim(),
-        gender,
-        dateOfBirth: approximateDob,
-        address: safeAddress,
-        location: safeAddress,
-        pincode: "811307",
-      });
+      await updateProfileApi(
+        {
+          name: name.trim(),
+          gender,
+          dateOfBirth: approximateDob,
+          address: apiAddress,
+          location: safeAddress,
+          pincode: "811307",
+        },
+        token
+      );
     } catch {
       // Continue even if network error so patient isn't stuck
     }

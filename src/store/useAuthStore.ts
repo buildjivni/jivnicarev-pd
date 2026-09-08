@@ -75,6 +75,7 @@ interface AuthState {
   doctorReviews: Record<string, DoctorReview>;
   platformFeedbacks: PlatformFeedback[];
   login: (user: UserProfile, token?: string) => void;
+  setToken: (token: string | null) => void;
   updateUser: (partial: Partial<UserProfile>) => void;
   logout: () => void;
   deleteAccount: () => void;
@@ -116,6 +117,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // SecureStore storage fallback
     }
     set({ user, token, isAuthenticated: true, isLoading: false, isInitialized: true });
+  },
+
+  setToken: (token: string | null) => {
+    if (token) {
+      try {
+        SecureStore.setItemAsync(TOKEN_KEY, token);
+      } catch (e) {}
+    } else {
+      try {
+        SecureStore.deleteItemAsync(TOKEN_KEY);
+      } catch (e) {}
+    }
+    set({ token });
   },
 
   updateUser: (partial: Partial<UserProfile>) => {

@@ -81,11 +81,17 @@ export async function verifyOtpApi(
 }
 
 export async function updateProfileApi(
-  profile: Partial<UserProfile>
+  profile: Partial<UserProfile>,
+  tokenOverride?: string
 ): Promise<ApiResponse<{ success: boolean; user: UserProfile }>> {
+  const headers: Record<string, string> = {};
+  if (tokenOverride) {
+    headers["Authorization"] = `Bearer ${tokenOverride}`;
+  }
   return apiClient<{ success: boolean; user: UserProfile }>("/api/patient/profile", {
     method: "PUT",
     body: profile,
+    headers,
   });
 }
 

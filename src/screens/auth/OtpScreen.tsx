@@ -157,9 +157,11 @@ export const OtpScreen: React.FC<OtpScreenProps> = ({
   };
 
   const handleOtpChange = (value: string, index: number) => {
-    // Multi-digit paste handler
-    if (value.length > 1) {
-      const digits = value.replace(/\D/g, "").slice(0, 6).split("");
+    const cleanDigits = value.replace(/\D/g, "");
+
+    // Multi-digit paste or autofill handler (4 to 6 digits)
+    if (cleanDigits.length >= 4) {
+      const digits = cleanDigits.slice(0, 6).split("");
       const newOtp = [...otp];
       digits.forEach((d, idx) => {
         if (idx < 6) newOtp[idx] = d;
@@ -181,7 +183,8 @@ export const OtpScreen: React.FC<OtpScreenProps> = ({
       return;
     }
 
-    const singleDigit = value.replace(/\D/g, "");
+    // Single digit typed or replaced in current box
+    const singleDigit = cleanDigits.length > 0 ? cleanDigits.slice(-1) : "";
     const newOtp = [...otp];
     newOtp[index] = singleDigit;
     setOtp(newOtp);
@@ -194,7 +197,7 @@ export const OtpScreen: React.FC<OtpScreenProps> = ({
     }
 
     // Auto-submit if all 6 filled
-    if (singleDigit && index === 5) {
+    if (singleDigit) {
       const fullOtp = newOtp.join("");
       if (fullOtp.length === 6) {
         executeVerify(fullOtp);
@@ -380,7 +383,7 @@ export const OtpScreen: React.FC<OtpScreenProps> = ({
                           error ? styles.otpBoxError : null,
                         ]}
                         keyboardType="number-pad"
-                        maxLength={index === 0 ? 6 : 1}
+                        maxLength={6}
                         value={digit}
                         onChangeText={(val) => handleOtpChange(val, index)}
                         onKeyPress={(e) => handleKeyPress(e, index)}

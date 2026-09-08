@@ -6,6 +6,7 @@ export interface BookAppointmentPayload {
   date?: string;
   location?: string;
   age?: number;
+  phone?: string;
   isEmergency?: boolean;
   visitName?: string;
   requestId?: string;
@@ -51,6 +52,7 @@ export async function bookAppointmentApi(
       date: dateStr,
       location: payload.location || "",
       age: payload.age || 25,
+      phone: payload.phone ? payload.phone.replace(/\D/g, "").slice(-10) : undefined,
       isEmergency: Boolean(payload.isEmergency),
       visitName: payload.visitName || "Patient",
       requestId: reqId,

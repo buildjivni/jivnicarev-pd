@@ -184,6 +184,7 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
         date: new Date().toISOString().split("T")[0],
         location: cityLocation || selectedDistrict || "Jamui",
         age: parsedAge,
+        phone: cleanPhone,
         isEmergency: isEmergencyBooking,
         visitName: name.trim(),
       });
