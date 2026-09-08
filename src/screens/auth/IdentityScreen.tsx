@@ -433,12 +433,12 @@ const styles = StyleSheet.create({
   heroContainer: {
     position: "relative",
     width: width,
-    height: 275,
+    height: 290,
     backgroundColor: "#E2E8F0",
   },
   heroImage: {
     width: width,
-    height: 275,
+    height: 290,
   },
   gradientOverlay: {
     position: "absolute",
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     paddingHorizontal: 18,
-    marginTop: -40,
+    marginTop: -32,
     zIndex: 30,
   },
   profileCard: {
