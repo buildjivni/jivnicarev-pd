@@ -93,15 +93,16 @@ export const OtpScreen: React.FC<OtpScreenProps> = ({
   onResendOtp,
 }) => {
   const insets = useSafeAreaInsets();
-  const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]);
+  const [otp, setOtp] = useState<string>("");
   const [timer, setTimer] = useState(60); // 60-second debounce visual countdown
   const [canResend, setCanResend] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resendStatus, setResendStatus] = useState<string | null>(null);
-  const [focusedIndex, setFocusedIndex] = useState<number | null>(0);
+  const [isInputFocused, setIsInputFocused] = useState(true);
+  const [cursorVisible, setCursorVisible] = useState(true);
 
-  const inputRefs = useRef<Array<TextInput | null>>([]);
+  const inputRef = useRef<TextInput>(null);
 
   const isEmailMode = Boolean(email || (phone && phone.includes("@")));
   const target = (email || phone || "").trim();
@@ -122,6 +123,14 @@ export const OtpScreen: React.FC<OtpScreenProps> = ({
     }
     return () => clearInterval(interval);
   }, [timer]);
+
+  // Subtle pulsing blinking cursor for current active cell
+  useEffect(() => {
+    const cursorInterval = setInterval(() => {
+      setCursorVisible((prev) => !prev);
+    }, 550);
+    return () => clearInterval(cursorInterval);
+  }, []);
 
   // Core verification function
   const executeVerify = async (codeToVerify: string) => {
@@ -156,61 +165,14 @@ export const OtpScreen: React.FC<OtpScreenProps> = ({
     }
   };
 
-  const handleOtpChange = (value: string, index: number) => {
-    const cleanDigits = value.replace(/\D/g, "");
-
-    // Multi-digit paste or autofill handler (4 to 6 digits)
-    if (cleanDigits.length >= 4) {
-      const digits = cleanDigits.slice(0, 6).split("");
-      const newOtp = [...otp];
-      digits.forEach((d, idx) => {
-        if (idx < 6) newOtp[idx] = d;
-      });
-      setOtp(newOtp);
-      if (error) setError(null);
-
-      const filledCount = newOtp.filter((d) => d !== "").length;
-      if (filledCount === 6) {
-        inputRefs.current[5]?.focus();
-        setFocusedIndex(5);
-        // Instant auto-submit
-        executeVerify(newOtp.join(""));
-      } else {
-        const nextTarget = Math.min(digits.length, 5);
-        inputRefs.current[nextTarget]?.focus();
-        setFocusedIndex(nextTarget);
-      }
-      return;
-    }
-
-    // Single digit typed or replaced in current box
-    const singleDigit = cleanDigits.length > 0 ? cleanDigits.slice(-1) : "";
-    const newOtp = [...otp];
-    newOtp[index] = singleDigit;
-    setOtp(newOtp);
+  const handleOtpChange = (value: string) => {
+    const cleanDigits = value.replace(/\D/g, "").slice(0, 6);
+    setOtp(cleanDigits);
     if (error) setError(null);
 
-    // Auto-advance to next box
-    if (singleDigit && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-      setFocusedIndex(index + 1);
-    }
-
-    // Auto-submit if all 6 filled
-    if (singleDigit) {
-      const fullOtp = newOtp.join("");
-      if (fullOtp.length === 6) {
-        executeVerify(fullOtp);
-      }
-    }
-  };
-
-  const handleKeyPress = (e: any, index: number) => {
-    if (e.nativeEvent.key === "Backspace") {
-      if (!otp[index] && index > 0) {
-        inputRefs.current[index - 1]?.focus();
-        setFocusedIndex(index - 1);
-      }
+    // Auto-verify when 6 digits are completely entered
+    if (cleanDigits.length === 6) {
+      executeVerify(cleanDigits);
     }
   };
 
@@ -218,11 +180,10 @@ export const OtpScreen: React.FC<OtpScreenProps> = ({
     if (!canResend) return;
     setTimer(60); // 60s debounce enforced
     setCanResend(false);
-    setOtp(["", "", "", "", "", ""]);
+    setOtp("");
     setError(null);
 
-    inputRefs.current[0]?.focus();
-    setFocusedIndex(0);
+    inputRef.current?.focus();
 
     if (isEmailMode) {
       setResendStatus("New verification code sent to your email.");
@@ -252,7 +213,7 @@ export const OtpScreen: React.FC<OtpScreenProps> = ({
     if (onResendOtp) onResendOtp();
   };
 
-  const isComplete = otp.every((d) => d.length === 1);
+  const isComplete = otp.length === 6;
 
   return (
     <View style={styles.screenWrapper}>
@@ -264,7 +225,7 @@ export const OtpScreen: React.FC<OtpScreenProps> = ({
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           bounces={false}
         >
           {/* ── Top Hero: Realistic Doctor Verification Hero ── */}
@@ -359,46 +320,73 @@ export const OtpScreen: React.FC<OtpScreenProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {/* 6 OTP Boxes with Active Focus Glow */}
-              <View style={styles.otpBoxesRow}>
-                {otp.map((digit, index) => {
-                  const isCurrent = focusedIndex === index;
-                  const isFilled = digit.length > 0;
-                  return (
-                    <View
-                      key={index}
-                      style={[
-                        styles.otpBoxWrapper,
-                        isCurrent && styles.otpBoxWrapperActive,
-                      ]}
-                    >
-                      <TextInput
-                        ref={(ref) => {
-                          inputRefs.current[index] = ref;
-                        }}
+              {/* 6 OTP Boxes with Single Rock-Solid Native Input (No focus jumping or keyboard dismiss) */}
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={() => inputRef.current?.focus()}
+                style={styles.otpBoxesWrapper}
+              >
+                {/* Native TextInput overlaid with 0.01 opacity so taps immediately focus it and keyboard stays up */}
+                <TextInput
+                  ref={inputRef}
+                  value={otp}
+                  onChangeText={handleOtpChange}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  returnKeyType="done"
+                  textContentType="oneTimeCode"
+                  autoComplete="one-time-code"
+                  autoFocus={true}
+                  caretHidden={true}
+                  onFocus={() => setIsInputFocused(true)}
+                  onBlur={() => setIsInputFocused(false)}
+                  style={styles.hiddenNativeInput}
+                  accessibilityLabel="6 digit verification code"
+                />
+
+                <View style={styles.otpBoxesRow} pointerEvents="none">
+                  {[0, 1, 2, 3, 4, 5].map((index) => {
+                    const digit = otp[index] || "";
+                    const isCurrent =
+                      isInputFocused &&
+                      (otp.length === index || (index === 5 && otp.length === 6));
+                    const isFilled = digit.length > 0;
+                    return (
+                      <View
+                        key={index}
                         style={[
-                          styles.otpBox,
-                          isFilled && styles.otpBoxFilled,
-                          isCurrent && styles.otpBoxFocused,
-                          error ? styles.otpBoxError : null,
+                          styles.otpBoxWrapper,
+                          isCurrent && styles.otpBoxWrapperActive,
                         ]}
-                        keyboardType="number-pad"
-                        maxLength={6}
-                        value={digit}
-                        onChangeText={(val) => handleOtpChange(val, index)}
-                        onKeyPress={(e) => handleKeyPress(e, index)}
-                        onFocus={() => setFocusedIndex(index)}
-                        onBlur={() => {
-                          if (focusedIndex === index) setFocusedIndex(null);
-                        }}
-                        autoFocus={index === 0}
-                        selectTextOnFocus
-                        accessibilityLabel={`Digit ${index + 1} of 6`}
-                      />
-                    </View>
-                  );
-                })}
-              </View>
+                      >
+                        <View
+                          style={[
+                            styles.otpBox,
+                            isFilled && styles.otpBoxFilled,
+                            isCurrent && styles.otpBoxFocused,
+                            error ? styles.otpBoxError : null,
+                          ]}
+                        >
+                          {digit ? (
+                            <Text
+                              style={[
+                                styles.otpBoxText,
+                                isFilled && styles.otpBoxTextFilled,
+                              ]}
+                            >
+                              {digit}
+                            </Text>
+                          ) : isCurrent && cursorVisible ? (
+                            <View style={styles.blinkingCursor} />
+                          ) : (
+                            <View style={styles.placeholderDot} />
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </TouchableOpacity>
 
               {/* Resend Success Toast */}
               {resendStatus && (
@@ -429,7 +417,7 @@ export const OtpScreen: React.FC<OtpScreenProps> = ({
                   styles.verifyBtn,
                   (!isComplete || loading) && styles.verifyBtnDisabled,
                 ]}
-                onPress={() => executeVerify(otp.join(""))}
+                onPress={() => executeVerify(otp)}
                 disabled={!isComplete || loading}
                 activeOpacity={0.88}
               >
@@ -658,11 +646,25 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1B3F6B",
   },
+  otpBoxesWrapper: {
+    position: "relative",
+    width: "100%",
+    marginBottom: 14,
+  },
+  hiddenNativeInput: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.01,
+    color: "transparent",
+    zIndex: 10,
+  },
   otpBoxesRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 8,
-    marginBottom: 14,
   },
   otpBoxWrapper: {
     flex: 1,
@@ -680,10 +682,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#E2E8F0",
     borderRadius: 14,
-    textAlign: "center",
-    fontSize: 22,
-    fontWeight: "900",
-    color: "#0F172A",
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#F8FAFC",
   },
   otpBoxFocused: {
@@ -694,12 +694,31 @@ const styles = StyleSheet.create({
   otpBoxFilled: {
     borderColor: "#1B3F6B",
     backgroundColor: "#F0F7FD",
-    color: "#1B3F6B",
   },
   otpBoxError: {
     borderColor: "#EF4444",
     backgroundColor: "#FEF2F2",
-    color: "#DC2626",
+  },
+  otpBoxText: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#0F172A",
+    textAlign: "center",
+  },
+  otpBoxTextFilled: {
+    color: "#1B3F6B",
+  },
+  blinkingCursor: {
+    width: 2.5,
+    height: 24,
+    backgroundColor: "#1B3F6B",
+    borderRadius: 1.5,
+  },
+  placeholderDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "#CBD5E1",
   },
   statusToast: {
     flexDirection: "row",
