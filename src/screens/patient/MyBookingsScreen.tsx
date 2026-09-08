@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,21 +7,22 @@ import {
   StyleSheet,
   Alert,
   Image,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Calendar,
   Clock,
   MapPin,
   Radio,
   CheckCircle2,
-  AlertCircle,
   XCircle,
-  ChevronRight,
   Stethoscope,
-} from "lucide-react-native";
-import { useBookingStore, GeneratedToken } from "../../store/useBookingStore";
-import { colors, radius, shadows, typography } from "../../theme";
+} from 'lucide-react-native';
+import { useBookingStore, GeneratedToken } from '../../store/useBookingStore';
+import { getMyBookingsApi, cancelBookingApi } from '../../api/bookingApi';
+import { colors, radius, shadows } from '../../theme';
 
 interface MyBookingsScreenProps {
   onTrackQueue: (token: GeneratedToken) => void;
@@ -32,33 +33,93 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({
   onTrackQueue,
   onExploreDoctors,
 }) => {
-  const [activeTab, setActiveTab] = useState<"ACTIVE" | "PAST">("ACTIVE");
-  const { activeBookings, cancelBooking } = useBookingStore();
+  const [activeTab, setActiveTab] = useState<'ACTIVE' | 'PAST'>('ACTIVE');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [cancellingTokenId, setCancellingTokenId] = useState<string | null>(null);
+
+  const { activeBookings, addActiveBooking, cancelBooking } = useBookingStore();
+
+  const fetchServerBookings = async () => {
+    setIsRefreshing(true);
+    try {
+      const res = await getMyBookingsApi();
+      if (res.success && res.data?.bookings && Array.isArray(res.data.bookings)) {
+        res.data.bookings.forEach((b: any) => {
+          const queue = b.queue || {};
+          const doc = queue.doctor || {};
+          const existing = activeBookings.find((item) => item.id === b.id);
+          if (!existing) {
+            const mapped: GeneratedToken = {
+              id: b.id,
+              tokenNumber: b.tokenNumber || 1,
+              doctorId: doc.id || queue.doctorId || '',
+              doctorName: doc.name || doc.user?.name || 'Doctor',
+              doctorImage: doc.profilePhoto || undefined,
+              specialty: doc.speciality || 'Specialist',
+              clinicName: doc.clinicName || 'OPD Clinic',
+              clinicAddress: doc.clinicAddress || '',
+              currentTokenNumber: queue.currentToken || 1,
+              patientsAhead: Math.max(0, (b.tokenNumber || 1) - (queue.currentToken || 1)),
+              estimatedWaitMinutes: Math.max(0, (b.tokenNumber || 1) - (queue.currentToken || 1)) * 15,
+              paymentMode: (b.paymentMode || 'CASH') as 'CASH' | 'ONLINE',
+              status: b.status || 'WAITING',
+              isEmergency: Boolean(b.type === 'EMERGENCY' || b.isEmergency),
+              bookedAt: b.bookedAt || new Date().toISOString(),
+              patientName: b.visitingName || 'Patient',
+              patientPhone: '',
+              fee: doc.consultationFee ? '₹' + doc.consultationFee : '₹500',
+            };
+            addActiveBooking(mapped);
+          }
+        });
+      }
+    } catch {
+      // offline / cache fallback
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchServerBookings();
+  }, []);
 
   const filteredBookings = activeBookings.filter((b) => {
-    const isPast =
-      b.status === "COMPLETED" ||
-      b.status === "CANCELLED";
-    return activeTab === "ACTIVE" ? !isPast : isPast;
+    const isPast = b.status === 'COMPLETED' || b.status === 'CANCELLED';
+    return activeTab === 'ACTIVE' ? !isPast : isPast;
   });
 
   const handleCancelPrompt = (token: GeneratedToken) => {
     Alert.alert(
-      "Cancel Token",
-      `Are you sure you want to cancel Token #${token.tokenNumber} with ${token.doctorName}? This will release the token for other waiting patients. No cancellation fee applies.`,
+      'Cancel Token',
+      'Are you sure you want to cancel Token #' + token.tokenNumber + ' with ' + token.doctorName + '? This will release the slot for other waiting patients. No cancellation fee applies.',
       [
-        { text: "No, Keep Token", style: "cancel" },
+        { text: 'No, Keep Token', style: 'cancel' },
         {
-          text: "Yes, Cancel",
-          style: "destructive",
-          onPress: () => cancelBooking(token.id),
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: async () => {
+            setCancellingTokenId(token.id);
+            cancelBooking(token.id); // optimistic update
+            try {
+              const res = await cancelBookingApi(token.id, 'Patient cancelled from mobile app');
+              if (!res.success) {
+                // If backend returned error
+                Alert.alert('Cancellation Notice', res.error || 'Token cancelled locally. Live queue will sync momentarily.');
+              }
+            } catch {
+              // Local cancel preserved
+            } finally {
+              setCancellingTokenId(null);
+            }
+          },
         },
       ]
     );
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Visits & Tokens</Text>
@@ -70,30 +131,32 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({
       {/* Tabs Row */}
       <View style={styles.tabsContainer}>
         <TouchableOpacity
-          style={[styles.tabBtn, activeTab === "ACTIVE" && styles.tabBtnActive]}
-          onPress={() => setActiveTab("ACTIVE")}
+          style={[styles.tabBtn, activeTab === 'ACTIVE' && styles.tabBtnActive]}
+          onPress={() => setActiveTab('ACTIVE')}
+          activeOpacity={0.8}
         >
           <Text
             style={[
               styles.tabText,
-              activeTab === "ACTIVE" && styles.tabTextActive,
+              activeTab === 'ACTIVE' && styles.tabTextActive,
             ]}
           >
-            Active Tokens ({activeBookings.filter((b) => b.status !== "CANCELLED" && b.status !== "COMPLETED").length})
+            Active Tokens ({activeBookings.filter((b) => b.status !== 'CANCELLED' && b.status !== 'COMPLETED').length})
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabBtn, activeTab === "PAST" && styles.tabBtnActive]}
-          onPress={() => setActiveTab("PAST")}
+          style={[styles.tabBtn, activeTab === 'PAST' && styles.tabBtnActive]}
+          onPress={() => setActiveTab('PAST')}
+          activeOpacity={0.8}
         >
           <Text
             style={[
               styles.tabText,
-              activeTab === "PAST" && styles.tabTextActive,
+              activeTab === 'PAST' && styles.tabTextActive,
             ]}
           >
-            Past History ({activeBookings.filter((b) => b.status === "CANCELLED" || b.status === "COMPLETED").length})
+            Past History ({activeBookings.filter((b) => b.status === 'CANCELLED' || b.status === 'COMPLETED').length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -104,9 +167,17 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={fetchServerBookings}
+            colors={[colors.primary]}
+          />
+        }
         renderItem={({ item }) => {
-          const isCancelled = item.status === "CANCELLED";
-          const isCompleted = item.status === "COMPLETED";
+          const isCancelled = item.status === 'CANCELLED';
+          const isCompleted = item.status === 'COMPLETED';
+          const isCancelling = cancellingTokenId === item.id;
 
           return (
             <View style={styles.tokenCard}>
@@ -115,6 +186,11 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({
                 <View style={styles.tokenNumberWrapper}>
                   <Text style={styles.tokenNumberPrefix}>TOKEN</Text>
                   <Text style={styles.tokenNumber}>#{item.tokenNumber}</Text>
+                  {item.isEmergency && (
+                    <View style={styles.emergencyTag}>
+                      <Text style={styles.emergencyTagText}>EMERGENCY</Text>
+                    </View>
+                  )}
                 </View>
 
                 <View style={styles.statusBadge}>
@@ -142,7 +218,7 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({
                 {item.doctorImage ? (
                   <Image
                     source={{ uri: item.doctorImage }}
-                    style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: "#E2E8F0" }}
+                    style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#E2E8F0' }}
                   />
                 ) : (
                   <View style={styles.doctorAvatar}>
@@ -177,15 +253,22 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({
                   <TouchableOpacity
                     style={styles.cancelBtn}
                     onPress={() => handleCancelPrompt(item)}
+                    disabled={isCancelling}
+                    activeOpacity={0.7}
                   >
-                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                    {isCancelling ? (
+                      <ActivityIndicator size='small' color={colors.rose600} />
+                    ) : (
+                      <Text style={styles.cancelBtnText}>Cancel</Text>
+                    )}
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={styles.trackBtn}
                     onPress={() => onTrackQueue(item)}
+                    activeOpacity={0.85}
                   >
-                    <Radio size={15} color="#FFFFFF" strokeWidth={2.4} />
+                    <Radio size={15} color='#FFFFFF' strokeWidth={2.4} />
                     <Text style={styles.trackBtnText}>Track Queue</Text>
                   </TouchableOpacity>
                 </View>
@@ -193,6 +276,7 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({
                 <TouchableOpacity
                   style={styles.rebookBtn}
                   onPress={onExploreDoctors}
+                  activeOpacity={0.8}
                 >
                   <Text style={styles.rebookBtnText}>Book Again</Text>
                 </TouchableOpacity>
@@ -204,18 +288,19 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({
           <View style={styles.emptyState}>
             <Calendar size={48} color={colors.textMuted} />
             <Text style={styles.emptyTitle}>
-              {activeTab === "ACTIVE"
-                ? "No active OPD tokens"
-                : "No past consultation history"}
+              {activeTab === 'ACTIVE'
+                ? 'No active OPD tokens'
+                : 'No past consultation history'}
             </Text>
             <Text style={styles.emptyDesc}>
-              {activeTab === "ACTIVE"
-                ? "You don't have any pending OPD appointments right now. Book a doctor to skip waiting."
-                : "Your completed and past doctor visits will appear here."}
+              {activeTab === 'ACTIVE'
+                ? 'You do not have any pending OPD appointments right now. Book a doctor to skip waiting.'
+                : 'Your completed and past doctor visits will appear here.'}
             </Text>
             <TouchableOpacity
               style={styles.findDoctorBtn}
               onPress={onExploreDoctors}
+              activeOpacity={0.85}
             >
               <Text style={styles.findDoctorBtnText}>Find Verified Doctors</Text>
             </TouchableOpacity>
@@ -239,7 +324,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: "900",
+    fontWeight: '900',
     color: colors.textPrimary,
   },
   headerSubtitle: {
@@ -248,7 +333,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   tabsContainer: {
-    flexDirection: "row",
+    flexDirection: 'row',
     backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingBottom: 10,
@@ -259,7 +344,7 @@ const styles = StyleSheet.create({
   tabBtn: {
     flex: 1,
     paddingVertical: 9,
-    alignItems: "center",
+    alignItems: 'center',
     borderRadius: radius.full,
     backgroundColor: colors.background,
     borderWidth: 1,
@@ -271,11 +356,11 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.textSecondary,
   },
   tabTextActive: {
-    color: "#FFFFFF",
+    color: '#FFFFFF',
   },
   listContent: {
     padding: 16,
@@ -292,33 +377,46 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   tokenCardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
     paddingBottom: 10,
   },
   tokenNumberWrapper: {
-    flexDirection: "row",
-    alignItems: "baseline",
+    flexDirection: 'row',
+    alignItems: 'baseline',
     gap: 6,
   },
   tokenNumberPrefix: {
     fontSize: 11,
-    fontWeight: "800",
+    fontWeight: '800',
     color: colors.textMuted,
     letterSpacing: 1,
   },
   tokenNumber: {
     fontSize: 22,
-    fontWeight: "900",
+    fontWeight: '900',
     color: colors.primary,
+  },
+  emergencyTag: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  emergencyTagText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#DC2626',
   },
   statusBadge: {},
   statusLivePill: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.emerald50,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -335,12 +433,12 @@ const styles = StyleSheet.create({
   },
   statusLiveText: {
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.emerald800,
   },
   statusCancelledPill: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.rose50,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -349,12 +447,12 @@ const styles = StyleSheet.create({
   },
   statusCancelledText: {
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.rose700,
   },
   statusCompletedPill: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.slate100,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -363,12 +461,12 @@ const styles = StyleSheet.create({
   },
   statusCompletedText: {
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.slate700,
   },
   doctorInfoRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
   },
   doctorAvatar: {
@@ -376,25 +474,25 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: radius.xl,
     backgroundColor: colors.primary50,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   doctorDetails: {
     flex: 1,
   },
   doctorName: {
     fontSize: 15,
-    fontWeight: "800",
+    fontWeight: '800',
     color: colors.textPrimary,
   },
   doctorSpecialty: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.primary,
   },
   clinicRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   clinicText: {
@@ -403,33 +501,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   metaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: colors.background,
     padding: 10,
     borderRadius: radius.lg,
   },
   metaPatient: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: colors.textSecondary,
   },
   metaFee: {
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: '800',
     color: colors.textPrimary,
   },
   cardActionsRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 10,
     marginTop: 4,
   },
   cancelBtn: {
     flex: 1,
     paddingVertical: 10,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: radius.full,
     backgroundColor: colors.background,
     borderWidth: 1,
@@ -437,15 +535,15 @@ const styles = StyleSheet.create({
   },
   cancelBtnText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.rose600,
   },
   trackBtn: {
     flex: 2,
-    flexDirection: "row",
+    flexDirection: 'row',
     paddingVertical: 10,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: radius.full,
     backgroundColor: colors.primary,
     gap: 6,
@@ -453,31 +551,31 @@ const styles = StyleSheet.create({
   },
   trackBtnText: {
     fontSize: 13,
-    fontWeight: "800",
-    color: "#FFFFFF",
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   rebookBtn: {
     backgroundColor: colors.primary50,
     paddingVertical: 10,
     borderRadius: radius.full,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.primary100,
   },
   rebookBtnText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: '700',
     color: colors.primary,
   },
   emptyState: {
     paddingTop: 60,
     paddingHorizontal: 24,
-    alignItems: "center",
+    alignItems: 'center',
   },
   emptyTitle: {
     fontSize: 17,
-    fontWeight: "800",
+    fontWeight: '800',
     color: colors.textPrimary,
     marginTop: 14,
     marginBottom: 6,
@@ -485,7 +583,7 @@ const styles = StyleSheet.create({
   emptyDesc: {
     fontSize: 13,
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 18,
     marginBottom: 20,
   },
@@ -496,8 +594,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   findDoctorBtnText: {
-    color: "#FFFFFF",
+    color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: '800',
   },
 });
